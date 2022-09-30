@@ -7,7 +7,7 @@ import Data.Char(isDigit)
 
 type Contents = String
 type Orders = String
-data Dms = Dm String Int [Dms] | Er | Qi deriving (Eq,Show)
+data Dms = Dm String Int [Dms] | Rp | Er | Qi deriving (Eq,Show)
 
 tgPass :: FilePath
 tgPass = "myfe.txt"
@@ -58,7 +58,19 @@ errors :: [String]
 errors = ["wrong command. enter 'a' or 'd'",
           "you should choose work or todo",
           "enter something",
-          "wrong command. enter 'y' or 'm' or 'w' or 'd'"]
+          "wrong command. enter 'y' or 'm' or 'w' or 'd'",
+          "",
+          "",
+          "wrong code -- enter the short letters for week",
+          "",
+          "h or d",
+          "enter numbers",
+          "enter numbers",
+          "enter hour and minute",
+          "enter hour and minute",
+          "Yes or No",
+          "day format YYYYMMDD"
+         ]
 
 main :: IO ()
 main = do
@@ -68,38 +80,49 @@ main = do
        else do
          fileIn ""
          return ""
-  comLoop c "" demands 
+  comLoop 1 0 "" demands 
 
-comLoop :: Contents -> Orders -> Dms -> IO ()
-comLoop c o dm@(Dm s i d) = do
-  putStrLn (messages!!i)
+comLoop :: Int -> Int -> Orders -> Dms -> IO ()
+comLoop r co o dm@(Dm s i d) = do
+  putStrLn (messages!!(i+co))
   putStr "> "
   g <- getLine
   let (no, nd) = checkInput g o d
       ((Dm ns _ _):_) = if (d==[]) then [Dm "-" 0 []] else d
-      hs = head ns
-  if (hs=='R') then repeatInput c no dm (tail ns) else return () 
-  let no' = if (hs=='R') then no++";" else no
-  case nd of
+      (hs:ts) = ns
+      r' = if(ts=="H") then if (co==1) then r-1 else r else r
+  (no', nd') <- if (hs=='R') then repeatInput r' no nd ts else return (no, nd) 
+  case nd' of
     Er -> do
       putStrLn (errors!!i)
-      comLoop c o dm 
+      comLoop r co o dm 
     Qi -> return ()
+    Rp -> do
+      putStrLn no'
+      let co' = if (ts=="H") then if (co==0) then 1 else 0 else co
+      comLoop r' co' no' dm
     _  -> do
       putStrLn no'
-      comLoop c no' nd
+      let nr = if (s=="w") then length (tail$last$sepChar ';' no) else r
+      putStrLn (show nr)
+      comLoop nr 0 no' nd'
 
-repeatInput :: Contents -> Orders -> Dms -> String -> IO () 
-repeatInput c o d s = do
-  putStr "Another Data? (Y/n) :"
-  y <- getLine
-  if (y=="n" || y=="N" || y=="no") then return () else do
+repeatInput :: Int -> Orders -> Dms -> String -> IO (Orders, Dms) 
+repeatInput r o d s = do
+  y <- if (s=="H") then return "" else do
+    putStr "Another Data? (Y/n) :"
+    getLine
+  if (y=="n" || y=="N" || y=="no") then return (o++";",d) else do
     let lo = last$sepChar ';' o
         len = length lo
-        iq = y==":q" || y=="exit"
-        ip = case s of "Y" -> True; "M" -> len < 29; "W" -> len < 8; "D" -> True
-    if ip then if iq then return () else comLoop c o d
-          else putStrLn "Can't add data!"
+        ip = case s of "M" -> len < 29; "W" -> len < 8; _ -> True
+        ir = r > 0
+    if (ip && ir) then return (o, Rp) 
+                  else do
+            if (s=="H") then return (o, d) else do
+              putStrLn "Can't add data!"
+              return (o++";", d)
+          
 
 
 
@@ -121,6 +144,7 @@ checkInput g o d =
            if iany then head d else
            if is then d!!id else Er
       no = case hc of
+             "RH" -> o++g++";"
              ('R':xs) -> o++(addDay (last$sepChar ';' o) g xs)
              "$" -> o++g++";"
              "I" -> o++g++";"
@@ -155,6 +179,7 @@ isDay t s =
                                          else (take 2 (drop 4 s'),drop 6 s')
                    (moi,dyi) = (read mo::Int, read dy::Int)
                 in moi>0 && moi<13 && dyi>0 && dyi<1+(daylist!!(moi-1))
+        _   -> True
 
 
 fileOut :: IO Contents
