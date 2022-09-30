@@ -1,4 +1,3 @@
---{--# LANGUAGE BangPatterns #--}
 import System.IO(IOMode(..), openFile, hClose, hGetContents, hSetEncoding, utf8, hPutStr,
                  hSetBuffering, stdout, BufferMode(NoBuffering))
 import System.Directory(doesFileExist)
