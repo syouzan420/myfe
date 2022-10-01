@@ -17,6 +17,9 @@ daylist = [31,28,31,30,31,30,31,31,30,31,30,31]
 weeklist :: [String]
 weeklist = ["su","m","tu","w","th","f","sa"]
 
+weekTList :: [String]
+weekTList = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
+
 demands :: Dms
 demands = Dm "" 0 [Dm "a" 1 [Dm "w" 2 [Dm "$" 3 dwork1],
                              Dm "m" 2 [Dm "$" 0 []],
@@ -83,7 +86,7 @@ main = do
 
 sLoop :: Contents -> IO ()
 sLoop c = do
-  o <- comLoop 1 0 "" demands
+  o <- comLoop [] 0 "" demands
   putStrLn o
   let (f:ord) = o
       cs = lines c
@@ -103,16 +106,22 @@ confirm s = do
   y <- getLine
   if (y=="n" || y=="N" || y=="no") then return False else return True
 
-comLoop :: Int -> Int -> Orders -> Dms -> IO Orders 
+noticeWeek :: Char -> IO ()
+noticeWeek w = do
+  let wn = weekTList !! (read [w]::Int)
+  putStrLn ("For "++wn++":")
+
+comLoop :: String -> Int -> Orders -> Dms -> IO Orders 
 comLoop _ _ o (Dm _ _ []) = return o
 comLoop r co o dm@(Dm s i d) = do
+  let ((Dm ns _ _):_) = if (d==[]) then [Dm "-" 0 []] else d
+      (hs:ts) = ns
+      r' = if(ts=="H") then if (co==1) then tail r else r else r
+  if (ts=="H") then noticeWeek (head r) else return ()
   putStrLn (messages!!(i+co))
   putStr "> "
   g <- getLine
   let (no, nd) = checkInput g o d
-      ((Dm ns _ _):_) = if (d==[]) then [Dm "-" 0 []] else d
-      (hs:ts) = ns
-      r' = if(ts=="H") then if (co==1) then r-1 else r else r
   (no', nd') <- if (hs=='R') then repeatInput r' no nd ts else return (no, nd) 
   case nd' of
     Er -> do
@@ -125,12 +134,12 @@ comLoop r co o dm@(Dm s i d) = do
       comLoop r' co' no' dm
     _  -> do
       putStrLn no'
-      let nr = if (s=="w") then length (tail$last$sepChar ';' no) else r
+      let nr = if (s=="w") then tail$last$sepChar ';' no else r
       no'' <- if(ns=="DT") then today >>= (\td -> return (no'++td++";"))
                            else return no'
       comLoop nr 0 no'' nd'
 
-repeatInput :: Int -> Orders -> Dms -> String -> IO (Orders, Dms) 
+repeatInput :: String -> Orders -> Dms -> String -> IO (Orders, Dms) 
 repeatInput r o d s = do
   if (d==Er || d==Qi) then return (o,d) else do
     y <- if (s=="H") then return "" else do
@@ -140,7 +149,7 @@ repeatInput r o d s = do
       let lo = last$sepChar ';' o
           len = length lo
           ip = case s of "M" -> len < 29; "W" -> len < 8; _ -> True
-          ir = r > 0
+          ir = length r > 0
       if (ip && ir) then return (o, Rp) 
                     else do
               if (s=="H") then return (o, d) else do
