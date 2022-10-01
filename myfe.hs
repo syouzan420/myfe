@@ -79,8 +79,29 @@ main = do
        else do
          fileIn ""
          return ""
-  o <- comLoop 1 0 "" demands 
+  sLoop c
+
+sLoop :: Contents -> IO ()
+sLoop c = do
+  o <- comLoop 1 0 "" demands
   putStrLn o
+  let (f:ord) = o
+      cs = lines c
+  case f of
+    'a' -> do
+      b <- confirm "add"
+      let ncs = cs ++ [ord]
+          nc = unlines ncs
+      fileIn nc
+      putStrLn "wrote to myfe.txt. success!"
+      sLoop nc
+    'q' -> return ()
+
+confirm :: String -> IO Bool
+confirm s = do
+  putStrLn ("Are you sure to "++s++"? (Y/n)")
+  y <- getLine
+  if (y=="n" || y=="N" || y=="no") then return False else return True
 
 comLoop :: Int -> Int -> Orders -> Dms -> IO Orders 
 comLoop _ _ o (Dm _ _ []) = return o
@@ -97,7 +118,7 @@ comLoop r co o dm@(Dm s i d) = do
     Er -> do
       putStrLn ("ERROR!!: "++(errors!!i))
       comLoop r co o dm 
-    Qi -> return "" 
+    Qi -> return "q" 
     Rp -> do
       putStrLn no'
       let co' = if (ts=="H") then if (co==0) then 1 else 0 else co
