@@ -33,7 +33,7 @@ dwork2 :: [Dms]
 dwork2 = [Dm "h" 9 [Dm "I" 10 [Dm "I" 11 dwork3]], Dm "d" 9 [Dm "I" 10 [Dm "I" 11 dwork3]]]
 
 dwork3 :: [Dms]
-dwork3 = [Dm "RH" 13 [Dm "YY" 0 [], Dm "YN" 14 [Dm "D" 0 []]]]
+dwork3 = [Dm "RH" 13 [Dm "DT" 0 [], Dm "N" 14 [Dm "JD" 0 []]]]
 
 messages :: [String]
 messages = ["enter the operation -- a: add, d: delete",
@@ -79,9 +79,11 @@ main = do
        else do
          fileIn ""
          return ""
-  comLoop 1 0 "" demands 
+  o <- comLoop 1 0 "" demands 
+  putStrLn o
 
-comLoop :: Int -> Int -> Orders -> Dms -> IO ()
+comLoop :: Int -> Int -> Orders -> Dms -> IO Orders 
+comLoop _ _ o (Dm _ _ []) = return o
 comLoop r co o dm@(Dm s i d) = do
   putStrLn (messages!!(i+co))
   putStr "> "
@@ -93,9 +95,9 @@ comLoop r co o dm@(Dm s i d) = do
   (no', nd') <- if (hs=='R') then repeatInput r' no nd ts else return (no, nd) 
   case nd' of
     Er -> do
-      putStrLn (errors!!i)
+      putStrLn ("ERROR!!: "++(errors!!i))
       comLoop r co o dm 
-    Qi -> return ()
+    Qi -> return "" 
     Rp -> do
       putStrLn no'
       let co' = if (ts=="H") then if (co==0) then 1 else 0 else co
@@ -103,27 +105,27 @@ comLoop r co o dm@(Dm s i d) = do
     _  -> do
       putStrLn no'
       let nr = if (s=="w") then length (tail$last$sepChar ';' no) else r
-      putStrLn (show nr)
-      comLoop nr 0 no' nd'
+      no'' <- if(ns=="DT") then today >>= (\td -> return (no'++td++";"))
+                           else return no'
+      comLoop nr 0 no'' nd'
 
 repeatInput :: Int -> Orders -> Dms -> String -> IO (Orders, Dms) 
 repeatInput r o d s = do
-  y <- if (s=="H") then return "" else do
-    putStr "Another Data? (Y/n) :"
-    getLine
-  if (y=="n" || y=="N" || y=="no") then return (o++";",d) else do
-    let lo = last$sepChar ';' o
-        len = length lo
-        ip = case s of "M" -> len < 29; "W" -> len < 8; _ -> True
-        ir = r > 0
-    if (ip && ir) then return (o, Rp) 
-                  else do
-            if (s=="H") then return (o, d) else do
-              putStrLn "Can't add data!"
-              return (o++";", d)
+  if (d==Er || d==Qi) then return (o,d) else do
+    y <- if (s=="H") then return "" else do
+      putStr "Another Data? (Y/n) :"
+      getLine
+    if (y=="n" || y=="N" || y=="no") then return (o++";",d) else do
+      let lo = last$sepChar ';' o
+          len = length lo
+          ip = case s of "M" -> len < 29; "W" -> len < 8; _ -> True
+          ir = r > 0
+      if (ip && ir) then return (o, Rp) 
+                    else do
+              if (s=="H") then return (o, d) else do
+                putStrLn "Can't add data!"
+                return (o++";", d)
           
-
-
 
 checkInput :: String -> Orders -> [Dms] -> (Orders, Dms) 
 checkInput g o d =
@@ -133,12 +135,15 @@ checkInput g o d =
       iany = hc=="$"
       inum = hc=="I"
       irp = head hc == 'R'
+      ijs = head hc == 'J'
+      iyn = head hc == 'D'
       len = length hc 
       (cm,els) = if (length g>=len) then (take 2 g,drop 2 g) else ("","")
       is = elem cm cms
       id = if is then getIndex cm cms else (-1)
       nd = if iq then Qi else
-           if irp then (if (isDay (tail hc) g) then head d else Er) else
+           if iyn then (if (g=="n" || g=="N" || g=="No") then head$tail d else head d) else
+           if (irp || ijs) then (if (isDay (tail hc) g) then head d else Er) else
            if inum then (if (isNum g) then head d else Er) else
            if iany then head d else
            if is then d!!id else Er
@@ -170,15 +175,17 @@ isDay t s =
    in case t of
         "Y" -> let (mo,dy) = if (len==3) then ([head s'],tail s') else (take 2 s',drop 2 s')
                    (moi,dyi) = (read mo::Int, read dy::Int)
-                in moi>0 && moi<13 && dyi>0 && dyi<1+(daylist!!(moi-1))
+                in len>2 && len<5 && moi>0 && moi<13 && dyi>0 && dyi<1+(daylist!!(moi-1))
         "M" -> let dyi = read s'::Int
                 in dyi>0 && dyi<32
         "W" -> elem s' weeklist 
         "D" -> let (mo,dy) = if (len==7) then ([s'!!4],drop 5 s') 
                                          else (take 2 (drop 4 s'),drop 6 s')
                    (moi,dyi) = (read mo::Int, read dy::Int)
-                in moi>0 && moi<13 && dyi>0 && dyi<1+(daylist!!(moi-1))
-        _   -> True
+                in len>6 && len <9 && moi>0 && moi<13 && dyi>0 && dyi<1+(daylist!!(moi-1))
+        "H" -> let (h,m) = if (len==3) then ([head s'],tail s') else (take 2 s',drop 2 s')
+                   (hi,mi) = (read h::Int, read m::Int)
+                in len>2 && len<5 && hi>=0 && hi<24 && mi>=0 && mi<60
 
 
 fileOut :: IO Contents
