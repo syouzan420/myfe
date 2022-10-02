@@ -268,4 +268,4 @@ dataChange c (a:as) =
                   't' -> cs++[as++";"++(last$sepChar ';' as)]
         'd' -> if is then unlines $ take id cs ++ drop (id+1) cs else c 
 
------------------------
+---------------------
