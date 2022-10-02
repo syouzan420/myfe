@@ -135,8 +135,8 @@ comLoop r co o dm@(Dm s i d) = do
     _  -> do
       putStrLn no'
       let nr = if (s=="w") then tail$last$sepChar ';' no else r
-      no'' <- if(ns=="DT") then today >>= (\td -> return (no'++td++";"))
-                           else return no'
+      no'' <- if(ns=="DT" && g=="") then today >>= (\td -> return (no'++td++";"))
+                                    else return no'
       comLoop nr 0 no'' nd'
 
 repeatInput :: String -> Orders -> Dms -> String -> IO (Orders, Dms) 
@@ -158,31 +158,29 @@ repeatInput r o d s = do
           
 
 checkInput :: String -> Orders -> [Dms] -> (Orders, Dms) 
-checkInput g o d =
-  let cms = map (\(Dm m _ _) -> m) d
-      hc = head$cms
-      iq = g==":q" || g=="exit"
-      iany = hc=="$"
-      inum = hc=="I"
-      irp = head hc == 'R'
-      ijs = head hc == 'J'
-      iyn = head hc == 'D'
+checkInput g o dm@(d:ds) =
+  let cms = map (\(Dm m _ _) -> m) dm
+      hc@(h:t) = head$cms
       len = length hc 
-      (cm,els) = if (length g>=len) then (take 2 g,drop 2 g) else ("","")
-      is = elem cm cms
-      id = if is then getIndex cm cms else (-1)
+      iq = g==":q" || g=="exit"
+      ich = not$elem h "$DIJR"
+      (cm,els) = if ich then (if (length g>=len) then (take len g,drop len g) else ("",""))
+                        else ("","")
       nd = if iq then Qi else
-           if iyn then (if (g=="n" || g=="N" || g=="No") then head$tail d else head d) else
-           if (irp || ijs) then (if (isDay (tail hc) g) then head d else Er) else
-           if inum then (if (isNum g) then head d else Er) else
-           if iany then head d else
-           if is then d!!id else Er
+           if ich then (if (elem cm cms) then dm!!(getIndex cm cms) else Er) else
+           case h of
+             'D' -> if (g=="n" || g=="N" || g=="No") then head$ds else d
+             'I' -> if (isNum g) then d else Er
+             '$' -> d
+             h' | h'=='R' || h'=='J' -> if (isDay t g) then d else Er
+             _   -> Er
       no = case hc of
              "RH" -> o++g++";"
+             "JD" -> o++g++";"
              ('R':xs) -> o++(addDay (last$sepChar ';' o) g xs)
              "$" -> o++g++";"
              "I" -> o++g++";"
-             _   -> o++cm 
+             _   -> o++cm
    in (no, nd)
 
 addDay :: Orders -> String -> String -> String
