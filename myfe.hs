@@ -57,15 +57,9 @@ messages = ["0;enter the operation -- a: add, d: delete",
            ]
 
 errors :: [String]
-errors = ["wrong command ",
-          "enter something",
-          "enter month and day",
-          "enter day",
-          "wrong week day",
-          "day format YYYYMMDD",
-          "enter numbers",
-          "enter hour and minute",
-          "Yes or No",
+errors = ["wrong command ", "enter something", "enter month and day",
+          "enter day", "wrong week day", "day format YYYYMMDD",
+          "enter numbers", "enter hour and minute", "Yes or No",
           "work length is negative"
          ]
 
@@ -74,9 +68,7 @@ main = do
   hSetBuffering stdout NoBuffering 
   e <- doesFileExist tgPass
   c <- if e then fileOut
-       else do
-         fileIn ""
-         return ""
+       else fileIn "" >> return ""
   sLoop c
 
 sLoop :: Contents -> IO ()
