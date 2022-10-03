@@ -39,39 +39,34 @@ dwork3 :: [Dms]
 dwork3 = [Dm "RH" 13 [Dm "DT" 0 [], Dm "N" 14 [Dm "JD" 0 []]]]
 
 messages :: [String]
-messages = ["enter the operation -- a: add, d: delete",
-            "w: work, m: money, t: todo",
-            "enter name",
-            "y: yearly, m: monthly, w: weekly, d: exact day",
-            "give a month and a day --ie. 120, 1023, 0920 ...",
-            "give a day --ie. 20, 11, 31 ...",
-            "su: Sunday, m: Monday, tu: Tuesday, w: Wednesday, th: Thursday, f: Friday, sa: Saturaday",
-            "give an exact day -- ie. 20220420, 20231024 ...",
-            "h: hourly wage, d: dayly wage",
-            "enter the wage --ie. 1000, 1200 ...",
-            "enter travelling expenses per day --ie. 880, 1200 ...",
-            "enter start time --ie. 915, 1330, 1500 ...",
-            "enter finish time --ie. 1300, 1600, 2330 ...",
-            "from today? (Y/n) (Y is default and Enter means default)",
-            "enter the day which the work starts --ie 20220927 20231221"
+messages = ["0;enter the operation -- a: add, d: delete",
+            "0;w: work, m: money, t: todo",
+            "1;enter name",
+            "0;y: yearly, m: monthly, w: weekly, d: exact day",
+            "2;give a month and a day --ie. 120, 1023, 0920 ...",
+            "3;give a day --ie. 20, 11, 31 ...",
+            "4;su: Sunday, m: Monday, tu: Tuesday, w: Wednesday, th: Thursday, f: Friday, sa: Saturaday",
+            "5;give an exact day -- ie. 20220420, 20231024 ...",
+            "0;h: hourly wage, d: dayly wage",
+            "6;enter the wage --ie. 1000, 1200 ...",
+            "6;enter travelling expenses per day --ie. 880, 1200 ...",
+            "7;enter start time --ie. 915, 1330, 1500 ...",
+            "7;enter finish time --ie. 1300, 1600, 2330 ...",
+            "8;from today? (Y/n) (Y is default and Enter means default)",
+            "5;enter the day which the work starts --ie 20220927 20231221"
            ]
 
 errors :: [String]
-errors = ["wrong command. enter 'a' or 'd'",
-          "you should choose work or todo",
+errors = ["wrong command ",
           "enter something",
-          "wrong command. enter 'y' or 'm' or 'w' or 'd'",
-          "",
-          "",
-          "wrong code -- enter the short letters for week",
-          "",
-          "h or d",
+          "enter month and day",
+          "enter day",
+          "wrong week day",
+          "day format YYYYMMDD",
           "enter numbers",
-          "enter numbers",
-          "enter hour and minute",
           "enter hour and minute",
           "Yes or No",
-          "day format YYYYMMDD"
+          "work length is negative"
          ]
 
 main :: IO ()
@@ -118,22 +113,26 @@ comLoop r co o dm@(Dm s i d) = do
       (hs:ts) = ns
       r' = if(ts=="H") then if (co==1) then tail r else r else r
   if (ts=="H") then noticeWeek (head r) else return ()
-  putStrLn (messages!!(i+co))
+  let (ecs:mes) = sepChar ';' (messages!!(i+co))
+  mapM_ putStrLn mes 
   putStr "> "
   g <- getLine
   let (no, nd) = checkInput g o d
   (no', nd') <- if (hs=='R') then repeatInput r' no nd ts else return (no, nd) 
-  case nd' of
+  let iwr = ts=="H" && co==1 && o/="" && howLong (last$sepChar ';' o) g < 0
+      ec = if iwr then 9 else read ecs 
+      nd'' = if iwr then Er else nd'
+  case nd'' of
     Er -> do
-      putStrLn ("ERROR!!: "++(errors!!i))
+      putStrLn ("ERROR!!: "++(errors!!ec))
+      putStrLn "--Press Enter To Continue--"
+      getLine
       comLoop r co o dm 
     Qi -> return "q" 
     Rp -> do
-      putStrLn no'
-      let co' = if (ts=="H") then if (co==0) then 1 else 0 else co
+      let co' = if (ts=="H" && (not iwr)) then if (co==0) then 1 else 0 else co
       comLoop r' co' no' dm
     _  -> do
-      putStrLn no'
       let nr = if (s=="w") then tail$last$sepChar ';' no else r
       no'' <- if(ns=="DT" && g=="") then today >>= (\td -> return (no'++td++";"))
                                     else return no'
@@ -249,10 +248,25 @@ getIndex t (x:xs) = if(t==x) then 0 else 1+(getIndex t xs)
 
 
 sepChar :: Char -> String -> [String]
+sepChar _ [] = []
 sepChar ch [x]    = if (x==ch) then [[]] else [[x]]
 sepChar ch (x:xs) = if (x==ch) then [[]]++(hd:tl)
                                else [x:hd]++tl
                           where (hd:tl) = sepChar ch xs
+
+toHour :: String -> (Int, Int)
+toHour s =
+  let len = length s
+      (ho,mi) = if (len==3) then ([head s],tail s) else (take 2 s,drop 2 s)
+   in (read ho, read mi)
+
+howLong :: String -> String -> Int
+howLong s f =
+  let (sho,smi) = toHour s
+      (fho,fmi) = toHour f
+      sami = sho * 60 + smi
+      fami = fho * 60 + fmi
+   in fami - sami
 
 dataChange :: Contents -> Orders -> Contents 
 dataChange c (a:as) =
