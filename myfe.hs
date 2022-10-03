@@ -80,10 +80,12 @@ sLoop c = do
   case f of
     'a' -> do
       b <- confirm "add"
-      let ncs = cs ++ [ord]
-          nc = unlines ncs
-      fileIn nc
-      putStrLn "wrote to myfe.txt. success!"
+      nc <- if b then do
+              let nc = unlines$cs ++ [ord]
+              fileIn nc
+              putStrLn "wrote to myfe.txt. success!"
+              return nc
+                 else putStrLn "add data -- canceled." >> return c
       sLoop nc
     'q' -> return ()
 
