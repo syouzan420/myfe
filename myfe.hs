@@ -73,21 +73,35 @@ main = do
 
 sLoop :: Contents -> IO ()
 sLoop c = do
-  o <- comLoop [] 0 "" demands
+  o <- comLoop "" "" 0 "" demands
   putStrLn o
   let (f:ord) = o
       cs = lines c
   case f of
     'a' -> do
       b <- confirm "add"
+      let s = isSame ord cs
+      cs' <- if (b && s) then do
+               putStrLn "There is a data of the same name. "
+               r <- confirm "replace"
+               if r then return$replOrd ord cs else return cs
+                         else return cs
       nc <- if b then do
-              let nc = unlines$cs ++ [ord]
+              let nc = unlines (cs' ++ (if s then [] else [ord]))
               fileIn nc
               putStrLn "wrote to myfe.txt. success!"
               return nc
                  else putStrLn "add data -- canceled." >> return c
       sLoop nc
     'q' -> return ()
+
+replOrd :: Orders -> [Orders] -> [Orders]
+replOrd ord cs =
+  let id = getIndex (head$sepChar ';' ord) (map (head . (sepChar ';')) cs)
+   in take id cs ++ [ord] ++ drop (id+1) cs
+
+isSame :: Orders -> [Orders] -> Bool
+isSame ord cs = elem (head$sepChar ';' ord) (map (head. (sepChar ';')) cs)
 
 confirm :: String -> IO Bool
 confirm s = do
@@ -100,18 +114,20 @@ noticeWeek w = do
   let wn = weekTList !! (read [w]::Int)
   putStrLn ("For "++wn++":")
 
-comLoop :: String -> Int -> Orders -> Dms -> IO Orders 
-comLoop _ _ o (Dm _ _ []) = return o
-comLoop r co o dm@(Dm s i d) = do
+comLoop :: String -> String -> Int -> Orders -> Dms -> IO Orders 
+comLoop _ _ _ o (Dm _ _ []) = return o
+comLoop ex r co o dm@(Dm s i d) = do
   let ((Dm ns _ _):_) = if (d==[]) then [Dm "-" 0 []] else d
       (hs:ts) = ns
       r' = if(ts=="H") then if (co==1) then tail r else r else r
   if (ts=="H") then noticeWeek (head r) else return ()
   let (ecs:mes) = sepChar ';' (messages!!(i+co))
-  mapM_ putStrLn mes 
-  putStr "> "
-  g <- getLine
-  let (no, nd) = checkInput g o d
+  g <- if (ex=="") then do
+    mapM_ putStrLn mes 
+    putStr "> "
+    getLine
+                   else return ex
+  let (no, nd, nex) = checkInput g o d
   (no', nd') <- if (hs=='R') then repeatInput r' no nd ts else return (no, nd) 
   let iwr = ts=="H" && co==1 && o/="" && howLong (last$sepChar ';' o) g < 0
       ec = if iwr then 9 else read ecs 
@@ -121,16 +137,16 @@ comLoop r co o dm@(Dm s i d) = do
       putStrLn ("ERROR!!: "++(errors!!ec))
       putStrLn "--Press Enter To Continue--"
       getLine
-      comLoop r co o dm 
+      comLoop nex r co o dm 
     Qi -> return "q" 
     Rp -> do
       let co' = if (ts=="H" && (not iwr)) then if (co==0) then 1 else 0 else co
-      comLoop r' co' no' dm
+      comLoop nex r' co' no' dm
     _  -> do
       let nr = if (s=="w") then tail$last$sepChar ';' no else r
       no'' <- if(ns=="DT" && g=="") then today >>= (\td -> return (no'++td++";"))
                                     else return no'
-      comLoop nr 0 no'' nd'
+      comLoop nex nr 0 no'' nd'
 
 repeatInput :: String -> Orders -> Dms -> String -> IO (Orders, Dms) 
 repeatInput r o d s = do
@@ -150,31 +166,30 @@ repeatInput r o d s = do
                 return (o++";", d)
           
 
-checkInput :: String -> Orders -> [Dms] -> (Orders, Dms) 
+checkInput :: String -> Orders -> [Dms] -> (Orders, Dms, String) 
 checkInput g o dm@(d:ds) =
   let cms = map (\(Dm m _ _) -> m) dm
       hc@(h:t) = head$cms
       len = length hc 
       iq = g==":q" || g=="exit"
       ich = not$elem h "$DIJR"
-      (cm,els) = if ich then (if (length g>=len) then (take len g,drop len g) else ("",""))
-                        else ("","")
+      (cm,ex) = if ich then (if (length g>=len) then (take len g,drop len g) else ("",""))
+                       else if (g=="") then ("","") else
+                          let hgs = head$sepChar ';' g; ln = length hgs in (hgs,drop (ln+1) g)
       nd = if iq then Qi else
            if ich then (if (elem cm cms) then dm!!(getIndex cm cms) else Er) else
            case h of
              'D' -> if (g=="n" || g=="N" || g=="No") then head$ds else d
-             'I' -> if (isNum g) then d else Er
+             'I' -> if (isNum cm) then d else Er
              '$' -> d
-             h' | h'=='R' || h'=='J' -> if (isDay t g) then d else Er
+             h' | h'=='R' || h'=='J' -> if (isDay t cm) then d else Er
              _   -> Er
       no = case hc of
-             "RH" -> o++g++";"
-             "JD" -> o++g++";"
-             ('R':xs) -> o++(addDay (last$sepChar ';' o) g xs)
-             "$" -> o++g++";"
-             "I" -> o++g++";"
+             hc' | hc'=="RH" || hc'=="JD" || hc'=="$" || hc'=="I" -> o++cm++";"
+             ('R':xs) -> o++(addDay (last$sepChar ';' o) cm xs)
              _   -> o++cm
-   in (no, nd)
+      ex' = if (nd==Er || nd==Qi) then "" else ex
+   in (no, nd, ex')
 
 addDay :: Orders -> String -> String -> String
 addDay lo g t =
