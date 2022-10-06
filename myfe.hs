@@ -22,11 +22,9 @@ weekTList = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturd
 
 demands :: Dms
 demands = Dm "" 0 [Dm "a" 1 [Dm "w" 2 [Dm "$" 3 dwork1],
-                             Dm "m" 2 [Dm "$" 0 []],
+                             Dm "m" 2 [Dm "$" 15 dwork4],
                              Dm "t" 2 [Dm "$" 0 []]],
-                   Dm "d" 1 [Dm "w" 2 [Dm "$" 0 []],
-                             Dm "m" 2 [Dm "$" 0 []],
-                             Dm "t" 2 [Dm "$" 0 []]]]
+                   Dm "d" 1 [Dm "w" 2 lany, Dm "m" 2 lany, Dm "t" 2 lany]]
 
 dwork1 :: [Dms]
 dwork1 = [Dm "y" 4 [Dm "RY" 8 dwork2],
@@ -39,6 +37,12 @@ dwork2 = [Dm "h" 9 [Dm "I" 10 [Dm "I" 11 dwork3]], Dm "d" 9 [Dm "I" 10 [Dm "I" 1
 
 dwork3 :: [Dms]
 dwork3 = [Dm "RH" 13 [Dm "DT" 0 [], Dm "N" 14 [Dm "JD" 0 []]]]
+
+dwork4 :: [Dms]
+dwork4 = [Dm "a" 16 [Dm "I" 17 lany], Dm "s" 16 [Dm "I" 17 lany]]
+
+lany :: [Dms]
+lany = [Dm "$" 0 []]
 
 messages :: [String]
 messages = ["0;enter the operation -- a: add, d: delete",
@@ -55,7 +59,10 @@ messages = ["0;enter the operation -- a: add, d: delete",
             "7;enter start time --ie. 915, 1330, 1500 ...",
             "7;enter finish time --ie. 1300, 1600, 2330 ...",
             "8;from today? (Y/n) (Y is default and Enter means default)",
-            "5;enter the day which the work starts --ie 20220927 20231221"
+            "5;enter the day which the work starts --ie 20220927 20231221",
+            "0;a: add, s: spent",
+            "6;enter the amount",
+            "1;description"
            ]
 
 errors :: [String]
