@@ -24,7 +24,9 @@ demands :: Dms
 demands = Dm "" 0 [Dm "a" 1 [Dm "w" 2 [Dm "$" 3 dwork1],
                              Dm "m" 2 [Dm "$" 0 []],
                              Dm "t" 2 [Dm "$" 0 []]],
-                   Dm "d" 0 []]
+                   Dm "d" 1 [Dm "w" 2 [Dm "$" 0 []],
+                             Dm "m" 2 [Dm "$" 0 []],
+                             Dm "t" 2 [Dm "$" 0 []]]]
 
 dwork1 :: [Dms]
 dwork1 = [Dm "y" 4 [Dm "RY" 8 dwork2],
@@ -80,28 +82,49 @@ sLoop c = do
   case f of
     'a' -> do
       b <- confirm "add"
-      let s = isSame ord cs
-      cs' <- if (b && s) then do
+      let s = idSame ord cs
+      cs' <- if (b && s>(-1)) then do
                putStrLn "There is a data of the same name. "
+               putStrLn (show (cs!!s))
                r <- confirm "replace"
-               if r then return$replOrd ord cs else return cs
-                         else return cs
+               if r then return$replOrd s ord cs else return cs
+                    else return cs
       nc <- if b then do
-              let nc = unlines (cs' ++ (if s then [] else [ord]))
+              let nc = unlines (cs' ++ (if (s>(-1)) then [] else [ord]))
               fileIn nc
               putStrLn "wrote to myfe.txt. success!"
               return nc
                  else putStrLn "add data -- canceled." >> return c
+      putStr ("\n"++nc++"\n")
+      sLoop nc
+    'd' -> do
+      let s = idSame ord cs
+      cs' <- if (s>(-1)) then do
+              putStrLn "The target data is"
+              putStrLn (show (cs!!s))
+              b <- confirm "delete"
+              if b then return$delOrd s cs else return cs
+                   else putStrLn "There is no target data-- delete canceled." >> return cs
+      nc <- if(cs==cs') then return c
+                        else do
+                          let nc = unlines cs'
+                          fileIn nc
+                          putStrLn "delete a data from myfe.txt. success!" >> return nc
+      putStr ("\n"++nc++"\n")
       sLoop nc
     'q' -> return ()
 
-replOrd :: Orders -> [Orders] -> [Orders]
-replOrd ord cs =
-  let id = getIndex (head$sepChar ';' ord) (map (head . (sepChar ';')) cs)
-   in take id cs ++ [ord] ++ drop (id+1) cs
+replOrd :: Int -> Orders -> [Orders] -> [Orders]
+replOrd id ord cs = take id cs ++ [ord] ++ drop (id+1) cs
 
-isSame :: Orders -> [Orders] -> Bool
-isSame ord cs = elem (head$sepChar ';' ord) (map (head. (sepChar ';')) cs)
+delOrd :: Int -> [Orders] -> [Orders]
+delOrd id cs = take id cs ++ drop (id+1) cs
+
+idSame :: Orders -> [Orders] -> Int 
+idSame ord cs = 
+  let oname = head$sepChar ';' ord
+      csname = map (head . (sepChar ';')) cs
+   in if (elem oname csname) then getIndex oname csname else (-1)
 
 confirm :: String -> IO Bool
 confirm s = do
@@ -229,7 +252,7 @@ fileOut = do
   h <- openFile tgPass ReadMode
   hSetEncoding h utf8
   con <- hGetContents h 
-  mapM_ putStrLn (lines con)
+  putStr (con++"\n")
   hClose h
   return con
 
@@ -254,7 +277,6 @@ uru y = let r1 = mod y 4 == 0
 getIndex :: Eq a => a -> [a] -> Int
 getIndex _ [] = 0
 getIndex t (x:xs) = if(t==x) then 0 else 1+(getIndex t xs)
-
 
 sepChar :: Char -> String -> [String]
 sepChar _ [] = []
