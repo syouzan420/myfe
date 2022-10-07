@@ -21,31 +21,44 @@ weekTList :: [String]
 weekTList = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
 
 demands :: Dms
-demands = Dm "" 0 [Dm "a" 1 [Dm "w" 2 [Dm "$" 3 dwork1],
-                             Dm "m" 2 [Dm "$" 15 dwork4],
+demands = Dm "" 0 [Dm "a" 1 [Dm "w" 2 [Dm "$" 3 awork1],
+                             Dm "m" 2 [Dm "$" 15 amoney1],
                              Dm "t" 2 [Dm "$" 0 []]],
-                   Dm "d" 1 [Dm "w" 2 lany, Dm "m" 2 lany, Dm "t" 2 lany]]
+                   Dm "d" 1 [Dm "w" 2 lany, Dm "m" 2 lany, Dm "t" 2 lany],
+                   Dm "s" 1 [Dm "w" 2 [Dm "$" 18 swork1],
+                             Dm "m" 2 [],
+                             Dm "t" 2 []]]
 
-dwork1 :: [Dms]
-dwork1 = [Dm "y" 4 [Dm "RY" 8 dwork2],
-          Dm "m" 5 [Dm "RM" 8 dwork2],
-          Dm "w" 6 [Dm "RW" 8 dwork2],
-          Dm "d" 7 [Dm "RD" 8 dwork2]]
+awork1 :: [Dms]
+awork1 = [Dm "y" 4 [Dm "RY" 8 awork2],
+          Dm "m" 5 [Dm "RM" 8 awork2],
+          Dm "w" 6 [Dm "RW" 8 awork2],
+          Dm "d" 7 [Dm "RD" 8 awork2]]
 
-dwork2 :: [Dms]
-dwork2 = [Dm "h" 9 [Dm "I" 10 [Dm "I" 11 dwork3]], Dm "d" 9 [Dm "I" 10 [Dm "I" 11 dwork3]]]
+awork2 :: [Dms]
+awork2 = [Dm "h" 9 [Dm "I" 10 [Dm "I" 11 awork3]], Dm "d" 9 [Dm "I" 10 [Dm "I" 11 awork3]]]
 
-dwork3 :: [Dms]
-dwork3 = [Dm "RH" 13 [Dm "DT" 0 [], Dm "N" 14 [Dm "JD" 0 []]]]
+awork3 :: [Dms]
+awork3 = [Dm "RH" 13 [Dm "DT" 0 [], Dm "N" 14 [Dm "JD" 0 []]]]
 
-dwork4 :: [Dms]
-dwork4 = [Dm "a" 16 [Dm "I" 17 lany], Dm "s" 16 [Dm "I" 17 lany]]
+amoney1 :: [Dms]
+amoney1 = [Dm "a" 16 [Dm "I" 17 lany], Dm "s" 16 [Dm "I" 17 lany]]
+
+sworkf1 :: [Dms] -> [Dms]
+sworkf1 dms = [Dm "t" 20 dms,             Dm "p" 21 [Dm "I" 20 dms],
+               Dm "n" 22 [Dm "I" 20 dms], Dm "e" 7 [Dm "JD" 20 dms]]
+
+swork1 :: [Dms]
+swork1 = [Dm "Saltw" 19 (sworkf1 swork2)]
+
+swork2 :: [Dms]
+swork2 = sworkf1 [] 
 
 lany :: [Dms]
 lany = [Dm "$" 0 []]
 
 messages :: [String]
-messages = ["0;enter the operation -- a: add, d: delete",
+messages = ["0;enter the operation -- a: add, d: delete, s: show",
             "0;w: work, m: money, t: todo",
             "1;enter name",
             "0;y: yearly, m: monthly, w: weekly, d: exact day",
@@ -62,7 +75,12 @@ messages = ["0;enter the operation -- a: add, d: delete",
             "5;enter the day which the work starts --ie 20220927 20231221",
             "0;a: add, s: spent",
             "6;enter the amount",
-            "1;description"
+            "1;description",
+            "0;choose to show -- a:all, l:work list, t:sum of travels, w:sum of wages",
+            "0;From -- t:this month, p:previous month, n:next month, e:exact month-day",
+            "0;To -- t:this month, p:previous month, n:next month, e:exact month-day",
+            "6;enter the number of months before: ie. 0(this month), 1(previous), 2...",
+            "6;enter the number of months after: ie. 0(this month), 1(next), 2..."
            ]
 
 errors :: [String]
@@ -86,24 +104,23 @@ sLoop c = do
   putStrLn o
   let (f:ord) = o
       cs = lines c
-  case f of
-    'a' -> do
+  nc <- case f of
+    f' | f'=='a' || f'=='s' -> do
       b <- confirm "add"
-      let s = idSame ord cs
+      let ord' = if(f'=='s') then 's':ord else ord
+          s = idSame ord' cs
       cs' <- if (b && s>(-1)) then do
                putStrLn "There is a data of the same name. "
                putStrLn (show (cs!!s))
                r <- confirm "replace"
-               if r then return$replOrd s ord cs else return cs
+               if r then return$replOrd s ord' cs else return cs
                     else return cs
-      nc <- if b then do
-              let nc = unlines (cs' ++ (if (s>(-1)) then [] else [ord]))
+      if b then do
+              let nc = unlines (cs' ++ (if (s>(-1)) then [] else [ord']))
               fileIn nc
               putStrLn "wrote to myfe.txt. success!"
               return nc
-                 else putStrLn "add data -- canceled." >> return c
-      putStr ("\n"++nc++"\n")
-      sLoop nc
+           else putStrLn "add data -- canceled." >> return c
     'd' -> do
       let s = idSame ord cs
       cs' <- if (s>(-1)) then do
@@ -112,14 +129,13 @@ sLoop c = do
               b <- confirm "delete"
               if b then return$delOrd s cs else return cs
                    else putStrLn "There is no target data-- delete canceled." >> return cs
-      nc <- if(cs==cs') then return c
-                        else do
-                          let nc = unlines cs'
-                          fileIn nc
-                          putStrLn "delete a data from myfe.txt. success!" >> return nc
-      putStr ("\n"++nc++"\n")
-      sLoop nc
-    'q' -> return ()
+      if(cs==cs') then return c
+                  else do
+                    let nc = unlines cs'
+                    fileIn nc
+                    putStrLn "delete a data from myfe.txt. success!" >> return nc
+    _ -> return c
+  if (f=='q') then return () else putStr ("\n"++nc++"\n") >> sLoop nc
 
 replOrd :: Int -> Orders -> [Orders] -> [Orders]
 replOrd id ord cs = take id cs ++ [ord] ++ drop (id+1) cs
@@ -202,7 +218,7 @@ checkInput g o dm@(d:ds) =
       hc@(h:t) = head$cms
       len = length hc 
       iq = g==":q" || g=="exit"
-      ich = not$elem h "$DIJR"
+      ich = not$elem h "$DIJRS"
       (cm,ex) = if ich then (if (length g>=len) then (take len g,drop len g) else ("",""))
                        else if (g=="") then ("","") else
                           let hgs = head$sepChar ';' g; ln = length hgs in (hgs,drop (ln+1) g)
@@ -210,6 +226,7 @@ checkInput g o dm@(d:ds) =
            if ich then (if (elem cm cms) then dm!!(getIndex cm cms) else Er) else
            case h of
              'D' -> if (g=="n" || g=="N" || g=="No") then head$ds else d
+             'S' -> if (isChar cm t) then d else Er
              'I' -> if (isNum cm) then d else Er
              '$' -> d
              h' | h'=='R' || h'=='J' -> if (isDay t cm) then d else Er
@@ -217,6 +234,7 @@ checkInput g o dm@(d:ds) =
       no = case hc of
              hc' | hc'=="RH" || hc'=="JD" || hc'=="$" || hc'=="I" -> o++cm++";"
              ('R':xs) -> o++(addDay (last$sepChar ';' o) cm xs)
+             ('S':_)  -> o++cm++";"
              _   -> o++cm
       ex' = if (nd==Er || nd==Qi) then "" else ex
    in (no, nd, ex')
@@ -232,6 +250,10 @@ addDay lo g t =
 isNum :: String -> Bool
 isNum [] = True
 isNum (x:xs) = (isDigit x) && (isNum xs)
+
+isChar :: String -> String -> Bool
+isChar [] _ = True 
+isChar (x:xs) str = (elem x str) && (isChar xs str)
 
 
 isDay :: String -> String -> Bool
@@ -305,19 +327,5 @@ howLong s f =
       sami = sho * 60 + smi
       fami = fho * 60 + fmi
    in fami - sami
-
-dataChange :: Contents -> Orders -> Contents 
-dataChange c (a:as) =
-  let cs = lines c
-      nms = map (head . (sepChar ';')) cs
-      nm = head$sepChar ';' as
-      is = elem nm nms
-      id = if is then getIndex nm nms else (-1)
-   in case a of
-        'a' -> if is then c else unlines $
-                case (head as) of
-                  'w' -> cs++[as]
-                  't' -> cs++[as++";"++(last$sepChar ';' as)]
-        'd' -> if is then unlines $ take id cs ++ drop (id+1) cs else c 
 
 ---------------------
