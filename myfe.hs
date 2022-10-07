@@ -23,7 +23,7 @@ weekTList = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturd
 demands :: Dms
 demands = Dm "" 0 [Dm "a" 1 [Dm "w" 2 [Dm "$" 3 awork1],
                              Dm "m" 2 [Dm "$" 15 amoney1],
-                             Dm "t" 2 [Dm "$" 0 []]],
+                             Dm "t" 2 [Dm "$" 23 atodo1]],
                    Dm "d" 1 [Dm "w" 2 lany, Dm "m" 2 lany, Dm "t" 2 lany],
                    Dm "s" 1 [Dm "w" 2 [Dm "$" 18 swork1],
                              Dm "m" 2 [],
@@ -44,15 +44,25 @@ awork3 = [Dm "RH" 13 [Dm "DT" 0 [], Dm "N" 14 [Dm "JD" 0 []]]]
 amoney1 :: [Dms]
 amoney1 = [Dm "a" 16 [Dm "I" 17 lany], Dm "s" 16 [Dm "I" 17 lany]]
 
-sworkf1 :: [Dms] -> [Dms]
-sworkf1 dms = [Dm "t" 20 dms,             Dm "p" 21 [Dm "I" 20 dms],
-               Dm "n" 22 [Dm "I" 20 dms], Dm "e" 7 [Dm "JD" 20 dms]]
+atodo1 :: [Dms]
+atodo1 = [Dm "b" 24 atodo2, Dm "w" 24 atodo2, Dm "p" 24 atodo2,
+          Dm "r" 24 atodo2, Dm "o" 24 atodo2]
+
+atodo2 :: [Dms]
+atodo2 = [Dm "$" 25 atodo3]
+
+atodo3 :: [Dms]
+atodo3 = [Dm "JD" 26 [Dm "P" 0 []]]
+
+sworkf1 :: Int -> [Dms] -> [Dms]
+sworkf1 m dms = [Dm "t" 5 [Dm "JM" m dms], Dm "p" 21 [Dm "I" 5 [Dm "JM" m dms]],
+               Dm "n" 22 [Dm "I" 5 [Dm "JM" m dms]], Dm "e" 7 [Dm "JD" m dms]]
 
 swork1 :: [Dms]
-swork1 = [Dm "Saltw" 19 (sworkf1 swork2)]
+swork1 = [Dm "Saltw" 19 (sworkf1 20 swork2)]
 
 swork2 :: [Dms]
-swork2 = sworkf1 [] 
+swork2 = sworkf1 0 [] 
 
 lany :: [Dms]
 lany = [Dm "$" 0 []]
@@ -80,14 +90,18 @@ messages = ["0;enter the operation -- a: add, d: delete, s: show",
             "0;From -- t:this month, p:previous month, n:next month, e:exact month-day",
             "0;To -- t:this month, p:previous month, n:next month, e:exact month-day",
             "6;enter the number of months before: ie. 0(this month), 1(previous), 2...",
-            "6;enter the number of months after: ie. 0(this month), 1(next), 2..."
+            "6;enter the number of months after: ie. 0(this month), 1(next), 2...",
+            "0;b: book, w: work, p: print, r: report, o: other",
+            "1;enter the description",
+            "5;enter the deadline",
+            "10;enter the todo format -- ie. 3-10,12-14,16,a,b,A,D,..."
            ]
 
 errors :: [String]
 errors = ["wrong command ", "enter something", "enter month and day",
           "enter day", "wrong week day", "day format YYYYMMDD",
           "enter numbers", "enter hour and minute", "Yes or No",
-          "work length is negative"
+          "work length is negative", "not the todo format"
          ]
 
 main :: IO ()
@@ -218,7 +232,7 @@ checkInput g o dm@(d:ds) =
       hc@(h:t) = head$cms
       len = length hc 
       iq = g==":q" || g=="exit"
-      ich = not$elem h "$DIJRS"
+      ich = not$elem h "$DIJPRS"
       (cm,ex) = if ich then (if (length g>=len) then (take len g,drop len g) else ("",""))
                        else if (g=="") then ("","") else
                           let hgs = head$sepChar ';' g; ln = length hgs in (hgs,drop (ln+1) g)
@@ -227,13 +241,15 @@ checkInput g o dm@(d:ds) =
            case h of
              'D' -> if (g=="n" || g=="N" || g=="No") then head$ds else d
              'S' -> if (isChar cm t) then d else Er
+             'P' -> if (isTodo cm) then d else Er
              'I' -> if (isNum cm) then d else Er
              '$' -> d
              h' | h'=='R' || h'=='J' -> if (isDay t cm) then d else Er
              _   -> Er
       no = case hc of
-             hc' | hc'=="RH" || hc'=="JD" || hc'=="$" || hc'=="I" -> o++cm++";"
+             hc' | hc'=="RH" || hc'=="JD" || hc'=="$" || hc'=="I" || hc'=="P" -> o++cm++";"
              ('R':xs) -> o++(addDay (last$sepChar ';' o) cm xs)
+             ('J':_)  -> o++cm++";"
              ('S':_)  -> o++cm++";"
              _   -> o++cm
       ex' = if (nd==Er || nd==Qi) then "" else ex
@@ -250,6 +266,9 @@ addDay lo g t =
 isNum :: String -> Bool
 isNum [] = True
 isNum (x:xs) = (isDigit x) && (isNum xs)
+
+isTodo :: String -> Bool
+isTodo s = True -- undefined
 
 isChar :: String -> String -> Bool
 isChar [] _ = True 
