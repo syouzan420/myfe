@@ -3,10 +3,12 @@ import System.IO(IOMode(..), openFile, hClose, hGetContents, hSetEncoding, utf8,
 import System.Directory(doesFileExist)
 import Data.Time.LocalTime(getZonedTime,ZonedTime(zonedTimeToLocalTime),LocalTime(localDay))
 import Data.Char(isDigit)
+import Data.Data(toConstr,Data)
 
 type Contents = String
 type Orders = String
 data Dms = Dm String Int [Dms] | Rp | Er | Qi deriving (Eq,Show)
+data Td = N Int | L Char | LN Char Int | S String | Ot deriving (Data,Eq,Show)
 
 tgPass :: FilePath
 tgPass = "myfe.txt"
@@ -49,10 +51,7 @@ atodo1 = [Dm "b" 24 atodo2, Dm "w" 24 atodo2, Dm "p" 24 atodo2,
           Dm "r" 24 atodo2, Dm "o" 24 atodo2]
 
 atodo2 :: [Dms]
-atodo2 = [Dm "$" 25 atodo3]
-
-atodo3 :: [Dms]
-atodo3 = [Dm "JD" 26 [Dm "P" 0 []]]
+atodo2 = [Dm "$" 25 [Dm "JD" 26 [Dm "P" 0 []]]]
 
 sworkf1 :: Int -> [Dms] -> [Dms]
 sworkf1 m dms = [Dm "t" 5 [Dm "JM" m dms], Dm "p" 21 [Dm "I" 5 [Dm "JM" m dms]],
@@ -247,7 +246,7 @@ checkInput g o dm@(d:ds) =
              h' | h'=='R' || h'=='J' -> if (isDay t cm) then d else Er
              _   -> Er
       no = case hc of
-             hc' | hc'=="RH" || hc'=="JD" || hc'=="$" || hc'=="I" || hc'=="P" -> o++cm++";"
+             hc' | hc'=="$" || hc'=="I" || hc'=="P" -> o++cm++";"
              ('R':xs) -> o++(addDay (last$sepChar ';' o) cm xs)
              ('J':_)  -> o++cm++";"
              ('S':_)  -> o++cm++";"
@@ -261,18 +260,40 @@ addDay lo g t =
     "W" -> let r = show$getIndex g weeklist 
                ism = elem (head r) lo
             in if ism then "" else r
-    _   -> undefined
+    _   -> g++";"
 
 isNum :: String -> Bool
 isNum [] = True
 isNum (x:xs) = (isDigit x) && (isNum xs)
 
 isTodo :: String -> Bool
-isTodo s = True -- undefined
+isTodo s = 
+  let tdl = sepChar ',' s
+   in and$map isto tdl
+
+isto :: String -> Bool
+isto s =
+  if(elem '-' s) then 
+      let (a:b:c) = sepChar '-' s
+       in if(c==[]) then (toConstr$cvTd a)==(toConstr$cvTd b) else False
+                 else if (cvTd s==Ot) then False else True
+
+cvTd :: String -> Td 
+cvTd [] = Ot
+cvTd s@(h:t)
+  | (isDigit h) && (isNum t)     = N (read s)
+  | (not$isDigit h) && (isNum t) = LN h (read t)
+  | t==[] && (not$isDigit h)     = L h
+  | isStr s                      = S s
+  | otherwise                    = Ot 
 
 isChar :: String -> String -> Bool
 isChar [] _ = True 
 isChar (x:xs) str = (elem x str) && (isChar xs str)
+
+isStr :: String -> Bool
+isStr [] = True
+isStr (x:xs) = (not$isDigit x) && (isStr xs)
 
 
 isDay :: String -> String -> Bool
