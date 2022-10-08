@@ -3,12 +3,11 @@ import System.IO(IOMode(..), openFile, hClose, hGetContents, hSetEncoding, utf8,
 import System.Directory(doesFileExist)
 import Data.Time.LocalTime(getZonedTime,ZonedTime(zonedTimeToLocalTime),LocalTime(localDay))
 import Data.Char(isDigit)
-import Data.Data(toConstr,Data)
 
 type Contents = String
 type Orders = String
 data Dms = Dm String Int [Dms] | Rp | Er | Qi deriving (Eq,Show)
-data Td = N Int | L Char | LN Char Int | S String | Ot deriving (Data,Eq,Show)
+data Td = N Int | L Char | LN Char Int | S String | Ot deriving (Eq,Show)
 
 tgPass :: FilePath
 tgPass = "myfe.txt"
@@ -271,19 +270,48 @@ isTodo s =
   let tdl = sepChar ',' s
    in and$map isto tdl
 
+conTodo :: String -> [Td]
+conTodo s =
+  let tdl = sepChar ',' s
+   in concat$map conto tdl
+
+conto :: String -> [Td]
+conto s =
+  if(elem '-' s) then
+      let (a:b:_) = sepChar '-' s
+       in cvTdList (cvTd a) (cvTd b) 
+                 else [cvTd s]
+
+cvTdList :: Td -> Td -> [Td]
+cvTdList (N a) (N b) = map (cvTd . show) (toList a b) 
+cvTdList (L a) (L b) = map (cvTd . (flip (:) [])) (toList a b) 
+cvTdList (LN c a) (LN _ b) = map (cvTd . ((:) c) . show) (toList a b) 
+cvTdList _ _ = []
+  
+toList :: (Enum a,Ord a) => a -> a -> [a]
+toList a b = if(a==b) then [a] else
+             if (a<b) then [a..b] else [b..a]
+
 isto :: String -> Bool
 isto s =
   if(elem '-' s) then 
       let (a:b:c) = sepChar '-' s
-       in if(c==[]) then (toConstr$cvTd a)==(toConstr$cvTd b) else False
+       in if(c==[]) then canListTd (cvTd a) (cvTd b) 
+                    else False
                  else if (cvTd s==Ot) then False else True
+
+canListTd :: Td -> Td -> Bool
+canListTd (N _) (N _) = True
+canListTd (L _) (L _) = True
+canListTd (LN a _) (LN b _) = a==b
+canListTd _ _ = False
 
 cvTd :: String -> Td 
 cvTd [] = Ot
 cvTd s@(h:t)
   | (isDigit h) && (isNum t)     = N (read s)
-  | (not$isDigit h) && (isNum t) = LN h (read t)
   | t==[] && (not$isDigit h)     = L h
+  | (not$isDigit h) && (isNum t) = LN h (read t)
   | isStr s                      = S s
   | otherwise                    = Ot 
 
