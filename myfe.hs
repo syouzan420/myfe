@@ -27,7 +27,7 @@ demands = Dm "" 0 [Dm "a" 1 [Dm "w" 2 [Dm "$" 3 awork1],
                              Dm "t" 2 [Dm "$" 23 atodo1]],
                    Dm "d" 1 [Dm "w" 2 lany, Dm "m" 2 lany, Dm "t" 2 lany],
                    Dm "s" 1 [Dm "w" 2 [Dm "$" 18 swork1],
-                             Dm "m" 2 [],
+                             Dm "m" 2 [Dm "$" 27 smoney1],
                              Dm "t" 2 []]]
 
 awork1 :: [Dms]
@@ -40,10 +40,12 @@ awork2 :: [Dms]
 awork2 = [Dm "h" 9 [Dm "I" 10 [Dm "I" 11 awork3]], Dm "d" 9 [Dm "I" 10 [Dm "I" 11 awork3]]]
 
 awork3 :: [Dms]
-awork3 = [Dm "RH" 13 [Dm "DT" 0 [], Dm "N" 14 [Dm "JD" 0 []]]]
+awork3 = [Dm "RH" 13 ltdy]
 
 amoney1 :: [Dms]
-amoney1 = [Dm "a" 16 [Dm "I" 17 lany], Dm "s" 16 [Dm "I" 17 lany]]
+amoney1 = [Dm "a" 16 [Dm "I" 17 [Dm "$" 13 ltdy]],
+           Dm "r" 16 [Dm "I" 17 [Dm "$" 13 ltdy]],
+           Dm "s" 16 [Dm "I" 17 [Dm "$" 13 ltdy]]]
 
 atodo1 :: [Dms]
 atodo1 = [Dm "b" 24 atodo2, Dm "w" 24 atodo2, Dm "p" 24 atodo2,
@@ -62,8 +64,14 @@ swork1 = [Dm "Saltw" 19 (sworkf1 20 swork2)]
 swork2 :: [Dms]
 swork2 = sworkf1 0 [] 
 
+smoney1 :: [Dms]
+smoney1 = [Dm "Saclr" 0 []]
+
 lany :: [Dms]
 lany = [Dm "$" 0 []]
+
+ltdy :: [Dms]
+ltdy = [Dm "DT" 0 [], Dm "N" 14 [Dm "JD" 0 []]]
 
 messages :: [String]
 messages = ["0;enter the operation -- a: add, d: delete, s: show",
@@ -81,7 +89,7 @@ messages = ["0;enter the operation -- a: add, d: delete, s: show",
             "7;enter finish time --ie. 1300, 1600, 2330 ...",
             "8;from today? (Y/n) (Y is default and Enter means default)",
             "5;enter the day which the work starts --ie 20220927 20231221",
-            "0;a: add, s: spent",
+            "0;a: add, r: remain, s: spent",
             "6;enter the amount",
             "1;description",
             "0;choose to show -- a:all, l:work list, t:sum of travels, w:sum of wages",
@@ -92,7 +100,9 @@ messages = ["0;enter the operation -- a: add, d: delete, s: show",
             "0;b: book, w: work, p: print, r: report, o: other",
             "1;enter the description",
             "5;enter the deadline",
-            "10;enter the todo format -- ie. 3-10,12-14,16,a,b,A,D,..."
+            "10;enter the todo format -- ie. 3-10,12-14,16,a,b,A,D,...",
+            "0;choose to show -- a:all, c:change, l:list",
+            "6;how many data to show?"
            ]
 
 errors :: [String]
@@ -108,6 +118,7 @@ main = do
   e <- doesFileExist tgPass
   c <- if e then fileOut
        else fileIn "" >> return ""
+  mapM_ putStrLn (showData c)
   sLoop c
 
 sLoop :: Contents -> IO ()
@@ -121,14 +132,15 @@ sLoop c = do
       b <- confirm "add"
       let ord' = if(f'=='s') then 's':ord else ord
           s = idSame ord' cs
-      cs' <- if (b && s>(-1)) then do
+          im = head ord == 'm'
+      cs' <- if (b && s>(-1) && not im) then do
                putStrLn "There is a data of the same name. "
                putStrLn (show (cs!!s))
                r <- confirm "replace"
                if r then return$replOrd s ord' cs else return cs
                     else return cs
       if b then do
-              let nc = unlines (cs' ++ (if (s>(-1)) then [] else [ord']))
+              let nc = unlines (cs' ++ (if (s>(-1) && not im) then [] else [ord']))
               fileIn nc
               putStrLn "wrote to myfe.txt. success!"
               return nc
@@ -253,6 +265,69 @@ checkInput g o dm@(d:ds) =
       ex' = if (nd==Er || nd==Qi) then "" else ex
    in (no, nd, ex')
 
+showData :: Contents -> [String]
+showData [] = []
+showData c =
+  let cs = lines c
+      sds = chooseData "s" cs
+   in showFunc cs sds
+
+showFunc :: [String] -> [String] -> [String]
+showFunc _ [] = [[]]
+showFunc cs ((t:ts):xs) = 
+  case t of
+    'm' -> let ords = sepChar ';' ts
+               nm = head ords
+               dls = chooseData ("m"++nm++";") cs
+               dls' = map (head . (sepChar ';')) dls
+               days = map (last . (sepChar ';')) dls
+               sdl = sorting$zip days dls'
+               rsl = sumUp sdl "" 0
+               ic = elem 'c' (ords!!1)
+               lrs = length rsl
+            in if (ic && lrs>1) then (("Money of Name:"++nm):(showMC rsl ("",0)))
+                                      ++(showFunc cs xs) 
+                                else showFunc cs xs 
+    _   -> showFunc cs xs 
+               
+showMC :: [(String,Int)] -> (String,Int) -> [String]
+showMC [] _ = []
+showMC ((day,amo):xs) ("",0) = showMC xs (day,amo)
+showMC ((day,amo):xs) (pday,pamo) =
+  let dl = hmDays day pday
+      sa = amo-pamo
+      ip = sa>=0
+      rate = floor$(fromIntegral sa)/(fromIntegral dl)
+   in [pday++" to "++day++": change: "++(show sa)
+           ++" ("++(if ip then "" else "-")++(show rate)++"/day)"]
+      ++ showMC xs (day,amo)
+
+sumUp :: [(String,String)] -> String -> Int -> [(String,Int)]
+sumUp [] pday pam = [(pday,pam)]
+sumUp ((day,(fl:amo)):xs) pday pam =
+  if (day==pday) then 
+      let nam = case fl of 'a' -> pam+(read amo); 'r' -> read amo
+       in sumUp xs day nam
+                 else if (pday=="") then sumUp xs day (read amo)
+                                    else (pday,pam):(sumUp xs day (read amo))
+      
+
+dsort :: Ord a => [(a,b)] -> [b] 
+dsort dt = snd$unzip$sorting dt
+
+sorting :: Ord a => [(a,b)] -> [(a,b)]
+sorting [] = []
+sorting ((a,b):xs) = sorting sml ++ [(a,b)] ++ sorting lar
+   where sml = [(p,n) | (p,n) <- xs, p<=a]
+         lar = [(q,m) | (q,m) <- xs, q>a]
+
+chooseData :: String -> [String] -> [String]
+chooseData _ [] = []
+chooseData h (x:xs) =
+  let lh = length h
+   in if ((take lh x)==h) then (drop lh x):(chooseData h xs) else chooseData h xs
+
+
 addDay :: Orders -> String -> String -> String
 addDay lo g t =
   case t of
@@ -273,7 +348,7 @@ isTodo s =
 conTodo :: String -> [Td]
 conTodo s =
   let tdl = sepChar ',' s
-   in concat$map conto tdl
+   in if(isTodo s) then concat$map conto tdl else []
 
 conto :: String -> [Td]
 conto s =
@@ -395,5 +470,23 @@ howLong s f =
       sami = sho * 60 + smi
       fami = fho * 60 + fmi
    in fami - sami
+
+sepday :: String -> (Int,Int,Int)
+sepday (a:b:c:d:e:f:g) = (read (a:b:c:d:[]), read (e:f:[]), read g)
+
+hmDays :: String -> String -> Int
+hmDays fday sday =
+  let (fy,fm,fd) = sepday fday
+      (sy,sm,sd) = sepday sday
+      fal = if (fm>1) then (sum$take (fm-1) daylist)+fd else fd
+      sal = if (sm>1) then (sum$take (sm-1) daylist)+sd else sd
+      fal' = if (uru fy && fm>2) then fal+1 else fal
+      sal' = if (uru sy && fm>2) then sal+1 else sal
+   in (dfYdays fy sy) + (sal'-fal')
+
+dfYdays :: Int -> Int -> Int
+dfYdays fy sy =
+  if (fy==sy) then 0
+              else (if (uru fy) then 366 else 365) + (dfYdays (fy+1) sy)
 
 ---------------------
