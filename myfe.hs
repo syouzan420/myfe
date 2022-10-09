@@ -7,7 +7,14 @@ import Data.Char(isDigit)
 type Contents = String
 type Orders = String
 data Dms = Dm String Int [Dms] | Rp | Er | Qi deriving (Eq,Show)
-data Td = N Int | L Char | LN Char Int | S String | Ot deriving (Eq,Show)
+data Td = N Int | L Char | LN Char Int | S String | Ot deriving (Eq)
+
+instance Show Td where
+  show (N i) = show i
+  show (L c) = [c]
+  show (LN c i) = [c]++(show i)
+  show (S s) = s
+  show Ot = "Ot"
 
 tgPass :: FilePath
 tgPass = "myfe.txt"
@@ -118,11 +125,13 @@ main = do
   e <- doesFileExist tgPass
   c <- if e then fileOut
        else fileIn "" >> return ""
-  mapM_ putStrLn (showData c)
   sLoop c
 
 sLoop :: Contents -> IO ()
 sLoop c = do
+  tdy <- today
+  mapM_ putStrLn (showData c)
+  mapM_ putStrLn (showTodo c tdy)
   o <- comLoop "" "" 0 "" demands
   putStrLn o
   let (f:ord) = o
@@ -130,8 +139,11 @@ sLoop c = do
   nc <- case f of
     f' | f'=='a' || f'=='s' -> do
       b <- confirm "add"
-      let ord' = if(f'=='s') then 's':ord else ord
-          s = idSame ord' cs
+      let ord' = if (f'=='s') then 's':ord else
+                 if ((head ord)=='t') then 
+                   ord++(joinChar ',' (map show (conTodo$last$sepChar ';' ord)))++";" else  ord
+          dpt = if((head ord)=='t') then 2 else 1
+          s = idSame dpt ord' cs
           im = head ord == 'm'
       cs' <- if (b && s>(-1) && not im) then do
                putStrLn "There is a data of the same name. "
@@ -146,7 +158,8 @@ sLoop c = do
               return nc
            else putStrLn "add data -- canceled." >> return c
     'd' -> do
-      let s = idSame ord cs
+      let dpt = if((head ord)=='t') then 2 else 1
+          s = idSame dpt ord cs
       cs' <- if (s>(-1)) then do
               putStrLn "The target data is"
               putStrLn (show (cs!!s))
@@ -167,10 +180,10 @@ replOrd id ord cs = take id cs ++ [ord] ++ drop (id+1) cs
 delOrd :: Int -> [Orders] -> [Orders]
 delOrd id cs = take id cs ++ drop (id+1) cs
 
-idSame :: Orders -> [Orders] -> Int 
-idSame ord cs = 
-  let oname = head$sepChar ';' ord
-      csname = map (head . (sepChar ';')) cs
+idSame :: Int -> Orders -> [Orders] -> Int 
+idSame dpt ord cs = 
+  let oname = concat$take dpt (sepChar ';' ord)
+      csname = map (concat . (take dpt) . (sepChar ';')) cs
    in if (elem oname csname) then getIndex oname csname else (-1)
 
 confirm :: String -> IO Bool
@@ -265,6 +278,54 @@ checkInput g o dm@(d:ds) =
       ex' = if (nd==Er || nd==Qi) then "" else ex
    in (no, nd, ex')
 
+showTodo :: Contents -> String -> [String]
+showTodo [] _ = []
+showTodo c day =
+  let cs = lines c
+      std = chooseData "t" cs
+   in showTodoEach std day
+
+showTodoEach :: [String] -> String -> [String]
+showTodoEach [] _ = []
+showTodoEach (td:tds) day =
+  let scs = sepChar ';' td
+      nm = head scs
+      (t:ds) = scs!!1
+      dl = scs!!2
+      cona = scs!!3
+      cona' = map show (conTodo cona)
+      cony = scs!!4
+      cony' = sepChar ',' cony
+      lena = fromIntegral$length cona'
+      leny = fromIntegral$length cony'
+      par = floor$(lena-leny)/lena*100
+      par2 = div par 10
+      bar = concat$["|"] ++ replicate par2 "=>" ++ replicate (10-par2) "--" ++ ["|"]
+      rday = hmDays day dl
+      res = "Todo: "++(nameTodo nm)++"-"++ds++"\n"++(todoType t)++": "++cony++"\n"
+                       ++bar++" "++(show par)++"% done -- "
+                       ++(if (rday>1) then (show rday)++" days ahead" else
+                          if (rday==1) then "tomorrow" else
+                          if (rday==0) then "today" else 
+                          if (rday==(-1)) then "yesterday" else (show (-rday))++" days behind")
+                       ++"\n"
+   in res:(showTodoEach tds day) 
+
+nameTodo :: String -> String
+nameTodo s =
+  case s of "ma" -> "Math"; "en" -> "English"; "ni" -> "Kokugo"; "ph" -> "Physics";
+            "bi" -> "Biology"; "ch" -> "Chemistry"; "hi" -> "History"; "ge" -> "Geology";
+            "te" -> "Technique"; "li" -> "Life"; "pe" -> "Pysical Excersize";
+            "mu" -> "Music"; "ar" -> "Art"; "so" -> "Society"; "ec" -> "Economy"; _ -> s
+
+nameMoney :: String -> String
+nameMoney s =
+  case s of "wa" -> "Wallet"; "co" -> "Cozeni"; "sa" -> "Saving"; _ -> s
+
+todoType :: Char -> String
+todoType c = 
+  case c of 'b' -> "Book"; 'w' -> "Work"; 'p' -> "Print"; 'r' -> "Report"; 'o' -> "Other"
+
 showData :: Contents -> [String]
 showData [] = []
 showData c =
@@ -285,7 +346,7 @@ showFunc cs ((t:ts):xs) =
                rsl = sumUp sdl "" 0
                ic = elem 'c' (ords!!1)
                lrs = length rsl
-            in if (ic && lrs>1) then (("Money of Name:"++nm):(showMC rsl ("",0)))
+            in if (ic && lrs>1) then (("Money: "++(nameMoney nm)):(showMC rsl ("",0)))
                                       ++(showFunc cs xs) 
                                 else showFunc cs xs 
     _   -> showFunc cs xs 
@@ -318,8 +379,8 @@ dsort dt = snd$unzip$sorting dt
 sorting :: Ord a => [(a,b)] -> [(a,b)]
 sorting [] = []
 sorting ((a,b):xs) = sorting sml ++ [(a,b)] ++ sorting lar
-   where sml = [(p,n) | (p,n) <- xs, p<=a]
-         lar = [(q,m) | (q,m) <- xs, q>a]
+   where sml = [(p,n) | (p,n) <- xs, p<a]
+         lar = [(q,m) | (q,m) <- xs, q>=a]
 
 chooseData :: String -> [String] -> [String]
 chooseData _ [] = []
@@ -456,6 +517,11 @@ sepChar ch [x]    = if (x==ch) then [[]] else [[x]]
 sepChar ch (x:xs) = if (x==ch) then [[]]++(hd:tl)
                                else [x:hd]++tl
                           where (hd:tl) = sepChar ch xs
+
+joinChar :: Char -> [String] -> String
+joinChar _ [] = []
+joinChar _ [x] = x
+joinChar ch (x:xs) = x++[ch]++(joinChar ch xs)
 
 toHour :: String -> (Int, Int)
 toHour s =
