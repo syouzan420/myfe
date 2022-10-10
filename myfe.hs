@@ -1,10 +1,9 @@
-import System.IO(IOMode(..), openFile, hClose, hGetContents, hSetEncoding, utf8, hPutStr,
-                 hSetBuffering, stdout, BufferMode(NoBuffering))
-import Data.Char(isDigit)
-import Useful(getIndex,sepChar,joinChar,sorting,toList,isNum,isChar,isStr)
+import System.IO(hSetBuffering, stdout, BufferMode(NoBuffering))
+import Useful(getIndex,sepChar,joinChar,sorting,isNum,isChar,chooseData,replCon,delCon)
 import Mydate(today,howLong,hmDays,isDay,addDay)
-import Mydata
+import Mydata(Orders,Contents,Dms(..),demands,messages,errors,weekTList,nameMoney)
 import Myfile(fileIn,fileOut,isFile)
+import Todo(isTodo,conTodo,showTodo)
 
 main :: IO ()
 main = do
@@ -36,7 +35,7 @@ sLoop c = do
                putStrLn "There is a data of the same name. "
                putStrLn (show (cs!!s))
                r <- confirm "replace"
-               if r then return$replOrd s ord' cs else return cs
+               if r then return$replCon s ord' cs else return cs
                     else return cs
       if b then do
               let nc = unlines (cs' ++ (if (s>(-1) && not im) then [] else [ord']))
@@ -51,7 +50,7 @@ sLoop c = do
               putStrLn "The target data is"
               putStrLn (show (cs!!s))
               b <- confirm "delete"
-              if b then return$delOrd s cs else return cs
+              if b then return$delCon s cs else return cs
                    else putStrLn "There is no target data-- delete canceled." >> return cs
       if(cs==cs') then return c
                   else do
@@ -60,12 +59,6 @@ sLoop c = do
                     putStrLn "delete a data from myfe.txt. success!" >> return nc
     _ -> return c
   if (f=='q') then return () else putStr ("\n"++nc++"\n") >> sLoop nc
-
-replOrd :: Int -> Orders -> [Orders] -> [Orders]
-replOrd id ord cs = take id cs ++ [ord] ++ drop (id+1) cs
-
-delOrd :: Int -> [Orders] -> [Orders]
-delOrd id cs = take id cs ++ drop (id+1) cs
 
 idSame :: Int -> Orders -> [Orders] -> Int 
 idSame dpt ord cs = 
@@ -165,39 +158,6 @@ checkInput g o dm@(d:ds) =
       ex' = if (nd==Er || nd==Qi) then "" else ex
    in (no, nd, ex')
 
-showTodo :: Contents -> String -> [String]
-showTodo [] _ = []
-showTodo c day =
-  let cs = lines c
-      std = chooseData "t" cs
-   in showTodoEach std day
-
-showTodoEach :: [String] -> String -> [String]
-showTodoEach [] _ = []
-showTodoEach (td:tds) day =
-  let scs = sepChar ';' td
-      nm = head scs
-      (t:ds) = scs!!1
-      dl = scs!!2
-      cona = scs!!3
-      cona' = map show (conTodo cona)
-      cony = scs!!4
-      cony' = sepChar ',' cony
-      lena = fromIntegral$length cona'
-      leny = fromIntegral$length cony'
-      par = floor$(lena-leny)/lena*100
-      par2 = div par 10
-      bar = concat$["|"] ++ replicate par2 "=>" ++ replicate (10-par2) "--" ++ ["|"]
-      rday = hmDays day dl
-      res = "Todo: "++(nameTodo nm)++"-"++ds++"\n"++(todoType t)++": "++cony++"\n"
-                       ++bar++" "++(show par)++"% done -- "
-                       ++(if (rday>1) then (show rday)++" days ahead" else
-                          if (rday==1) then "tomorrow" else
-                          if (rday==0) then "today" else 
-                          if (rday==(-1)) then "yesterday" else (show (-rday))++" days behind")
-                       ++"\n"
-   in res:(showTodoEach tds day) 
-
 showData :: Contents -> [String]
 showData [] = []
 showData c =
@@ -244,55 +204,3 @@ sumUp ((day,(fl:amo)):xs) pday pam =
                  else if (pday=="") then sumUp xs day (read amo)
                                     else (pday,pam):(sumUp xs day (read amo))
       
-chooseData :: String -> [String] -> [String]
-chooseData _ [] = []
-chooseData h (x:xs) =
-  let lh = length h
-   in if ((take lh x)==h) then (drop lh x):(chooseData h xs) else chooseData h xs
-
-isTodo :: String -> Bool
-isTodo s = 
-  let tdl = sepChar ',' s
-   in and$map isto tdl
-
-conTodo :: String -> [Td]
-conTodo s =
-  let tdl = sepChar ',' s
-   in if(isTodo s) then concat$map conto tdl else []
-
-conto :: String -> [Td]
-conto s =
-  if(elem '-' s) then
-      let (a:b:_) = sepChar '-' s
-       in cvTdList (cvTd a) (cvTd b) 
-                 else [cvTd s]
-
-cvTdList :: Td -> Td -> [Td]
-cvTdList (N a) (N b) = map (cvTd . show) (toList a b) 
-cvTdList (L a) (L b) = map (cvTd . (flip (:) [])) (toList a b) 
-cvTdList (LN c a) (LN _ b) = map (cvTd . ((:) c) . show) (toList a b) 
-cvTdList _ _ = []
-  
-isto :: String -> Bool
-isto s =
-  if(elem '-' s) then 
-      let (a:b:c) = sepChar '-' s
-       in if(c==[]) then canListTd (cvTd a) (cvTd b) 
-                    else False
-                 else if (cvTd s==Ot) then False else True
-
-canListTd :: Td -> Td -> Bool
-canListTd (N _) (N _) = True
-canListTd (L _) (L _) = True
-canListTd (LN a _) (LN b _) = a==b
-canListTd _ _ = False
-
-cvTd :: String -> Td 
-cvTd [] = Ot
-cvTd s@(h:t)
-  | (isDigit h) && (isNum t)     = N (read s)
-  | t==[] && (not$isDigit h)     = L h
-  | (not$isDigit h) && (isNum t) = LN h (read t)
-  | isStr s                      = S s
-  | otherwise                    = Ot 
----------------------

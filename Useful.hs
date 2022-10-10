@@ -43,3 +43,15 @@ isStr :: String -> Bool
 isStr [] = True
 isStr (x:xs) = (not$isDigit x) && (isStr xs)
 
+chooseData :: String -> [String] -> [String]
+chooseData _ [] = []
+chooseData h (x:xs) =
+  let lh = length h
+   in if ((take lh x)==h) then (drop lh x):(chooseData h xs) else chooseData h xs
+
+replCon :: Int -> a -> [a] -> [a]
+replCon id x y = take id y ++ [x] ++ drop (id+1) y 
+
+delCon :: Int -> [a] -> [a]
+delCon id y = take id y ++ drop (id+1) y 
+
