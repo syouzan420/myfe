@@ -1,0 +1,45 @@
+module Useful where
+
+import Data.Char(isDigit)
+
+getIndex :: Eq a => a -> [a] -> Int
+getIndex _ [] = 0
+getIndex t (x:xs) = if(t==x) then 0 else 1+(getIndex t xs)
+
+sepChar :: Char -> String -> [String]
+sepChar _ [] = []
+sepChar ch [x]    = if (x==ch) then [[]] else [[x]]
+sepChar ch (x:xs) = if (x==ch) then [[]]++(hd:tl)
+                               else [x:hd]++tl
+                          where (hd:tl) = sepChar ch xs
+
+joinChar :: Char -> [String] -> String
+joinChar _ [] = []
+joinChar _ [x] = x
+joinChar ch (x:xs) = x++[ch]++(joinChar ch xs)
+
+dsort :: Ord a => [(a,b)] -> [b] 
+dsort dt = snd$unzip$sorting dt
+
+sorting :: Ord a => [(a,b)] -> [(a,b)]
+sorting [] = []
+sorting ((a,b):xs) = sorting sml ++ [(a,b)] ++ sorting lar
+   where sml = [(p,n) | (p,n) <- xs, p<a]
+         lar = [(q,m) | (q,m) <- xs, q>=a]
+
+toList :: (Enum a,Ord a) => a -> a -> [a]
+toList a b = if(a==b) then [a] else
+             if (a<b) then [a..b] else [b..a]
+
+isNum :: String -> Bool
+isNum [] = True
+isNum (x:xs) = (isDigit x) && (isNum xs)
+
+isChar :: String -> String -> Bool
+isChar [] _ = True 
+isChar (x:xs) str = (elem x str) && (isChar xs str)
+
+isStr :: String -> Bool
+isStr [] = True
+isStr (x:xs) = (not$isDigit x) && (isStr xs)
+
