@@ -1,128 +1,15 @@
 import System.IO(IOMode(..), openFile, hClose, hGetContents, hSetEncoding, utf8, hPutStr,
                  hSetBuffering, stdout, BufferMode(NoBuffering))
-import System.Directory(doesFileExist)
-import Data.Time.LocalTime(getZonedTime,ZonedTime(zonedTimeToLocalTime),LocalTime(localDay))
 import Data.Char(isDigit)
-
-type Contents = String
-type Orders = String
-data Dms = Dm String Int [Dms] | Rp | Er | Qi deriving (Eq,Show)
-data Td = N Int | L Char | LN Char Int | S String | Ot deriving (Eq)
-
-instance Show Td where
-  show (N i) = show i
-  show (L c) = [c]
-  show (LN c i) = [c]++(show i)
-  show (S s) = s
-  show Ot = "Ot"
-
-tgPass :: FilePath
-tgPass = "myfe.txt"
-
-daylist :: [Int]
-daylist = [31,28,31,30,31,30,31,31,30,31,30,31]
-
-weeklist :: [String]
-weeklist = ["su","m","tu","w","th","f","sa"]
-
-weekTList :: [String]
-weekTList = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
-
-demands :: Dms
-demands = Dm "" 0 [Dm "a" 1 [Dm "w" 2 [Dm "$" 3 awork1],
-                             Dm "m" 2 [Dm "$" 15 amoney1],
-                             Dm "t" 2 [Dm "$" 23 atodo1]],
-                   Dm "d" 1 [Dm "w" 2 lany, Dm "m" 2 lany, Dm "t" 2 lany],
-                   Dm "s" 1 [Dm "w" 2 [Dm "$" 18 swork1],
-                             Dm "m" 2 [Dm "$" 27 smoney1],
-                             Dm "t" 2 []]]
-
-awork1 :: [Dms]
-awork1 = [Dm "y" 4 [Dm "RY" 8 awork2],
-          Dm "m" 5 [Dm "RM" 8 awork2],
-          Dm "w" 6 [Dm "RW" 8 awork2],
-          Dm "d" 7 [Dm "RD" 8 awork2]]
-
-awork2 :: [Dms]
-awork2 = [Dm "h" 9 [Dm "I" 10 [Dm "I" 11 awork3]], Dm "d" 9 [Dm "I" 10 [Dm "I" 11 awork3]]]
-
-awork3 :: [Dms]
-awork3 = [Dm "RH" 13 ltdy]
-
-amoney1 :: [Dms]
-amoney1 = [Dm "a" 16 [Dm "I" 17 [Dm "$" 13 ltdy]],
-           Dm "r" 16 [Dm "I" 17 [Dm "$" 13 ltdy]],
-           Dm "s" 16 [Dm "I" 17 [Dm "$" 13 ltdy]]]
-
-atodo1 :: [Dms]
-atodo1 = [Dm "b" 24 atodo2, Dm "w" 24 atodo2, Dm "p" 24 atodo2,
-          Dm "r" 24 atodo2, Dm "o" 24 atodo2]
-
-atodo2 :: [Dms]
-atodo2 = [Dm "$" 25 [Dm "JD" 26 [Dm "P" 0 []]]]
-
-sworkf1 :: Int -> [Dms] -> [Dms]
-sworkf1 m dms = [Dm "t" 5 [Dm "JM" m dms], Dm "p" 21 [Dm "I" 5 [Dm "JM" m dms]],
-               Dm "n" 22 [Dm "I" 5 [Dm "JM" m dms]], Dm "e" 7 [Dm "JD" m dms]]
-
-swork1 :: [Dms]
-swork1 = [Dm "Saltw" 19 (sworkf1 20 swork2)]
-
-swork2 :: [Dms]
-swork2 = sworkf1 0 [] 
-
-smoney1 :: [Dms]
-smoney1 = [Dm "Saclr" 0 []]
-
-lany :: [Dms]
-lany = [Dm "$" 0 []]
-
-ltdy :: [Dms]
-ltdy = [Dm "DT" 0 [], Dm "N" 14 [Dm "JD" 0 []]]
-
-messages :: [String]
-messages = ["0;enter the operation -- a: add, d: delete, s: show",
-            "0;w: work, m: money, t: todo",
-            "1;enter name",
-            "0;y: yearly, m: monthly, w: weekly, d: exact day",
-            "2;give a month and a day --ie. 120, 1023, 0920 ...",
-            "3;give a day --ie. 20, 11, 31 ...",
-            "4;su: Sunday, m: Monday, tu: Tuesday, w: Wednesday, th: Thursday, f: Friday, sa: Saturaday",
-            "5;give an exact day -- ie. 20220420, 20231024 ...",
-            "0;h: hourly wage, d: dayly wage",
-            "6;enter the wage --ie. 1000, 1200 ...",
-            "6;enter travelling expenses per day --ie. 880, 1200 ...",
-            "7;enter start time --ie. 915, 1330, 1500 ...",
-            "7;enter finish time --ie. 1300, 1600, 2330 ...",
-            "8;from today? (Y/n) (Y is default and Enter means default)",
-            "5;enter the day which the work starts --ie 20220927 20231221",
-            "0;a: add, r: remain, s: spent",
-            "6;enter the amount",
-            "1;description",
-            "0;choose to show -- a:all, l:work list, t:sum of travels, w:sum of wages",
-            "0;From -- t:this month, p:previous month, n:next month, e:exact month-day",
-            "0;To -- t:this month, p:previous month, n:next month, e:exact month-day",
-            "6;enter the number of months before: ie. 0(this month), 1(previous), 2...",
-            "6;enter the number of months after: ie. 0(this month), 1(next), 2...",
-            "0;b: book, w: work, p: print, r: report, o: other",
-            "1;enter the description",
-            "5;enter the deadline",
-            "10;enter the todo format -- ie. 3-10,12-14,16,a,b,A,D,...",
-            "0;choose to show -- a:all, c:change, l:list",
-            "6;how many data to show?"
-           ]
-
-errors :: [String]
-errors = ["wrong command ", "enter something", "enter month and day",
-          "enter day", "wrong week day", "day format YYYYMMDD",
-          "enter numbers", "enter hour and minute", "Yes or No",
-          "work length is negative", "not the todo format"
-         ]
+import Useful(getIndex,sepChar,joinChar,sorting,toList,isNum,isChar,isStr)
+import Mydate(today,howLong,hmDays,isDay,addDay)
+import Mydata
+import Myfile(fileIn,fileOut,isFile)
 
 main :: IO ()
 main = do
   hSetBuffering stdout NoBuffering 
-  e <- doesFileExist tgPass
+  e <- isFile 
   c <- if e then fileOut
        else fileIn "" >> return ""
   sLoop c
@@ -311,21 +198,6 @@ showTodoEach (td:tds) day =
                        ++"\n"
    in res:(showTodoEach tds day) 
 
-nameTodo :: String -> String
-nameTodo s =
-  case s of "ma" -> "Math"; "en" -> "English"; "ni" -> "Kokugo"; "ph" -> "Physics";
-            "bi" -> "Biology"; "ch" -> "Chemistry"; "hi" -> "History"; "ge" -> "Geology";
-            "te" -> "Technique"; "li" -> "Life"; "pe" -> "Physical Excersize";
-            "mu" -> "Music"; "ar" -> "Art"; "so" -> "Society"; "ec" -> "Economy"; _ -> s
-
-nameMoney :: String -> String
-nameMoney s =
-  case s of "wa" -> "Wallet"; "co" -> "Cozeni"; "sa" -> "Saving"; _ -> s
-
-todoType :: Char -> String
-todoType c = 
-  case c of 'b' -> "Book"; 'w' -> "Work"; 'p' -> "Print"; 'r' -> "Report"; 'o' -> "Other"
-
 showData :: Contents -> [String]
 showData [] = []
 showData c =
@@ -372,34 +244,11 @@ sumUp ((day,(fl:amo)):xs) pday pam =
                  else if (pday=="") then sumUp xs day (read amo)
                                     else (pday,pam):(sumUp xs day (read amo))
       
-
-dsort :: Ord a => [(a,b)] -> [b] 
-dsort dt = snd$unzip$sorting dt
-
-sorting :: Ord a => [(a,b)] -> [(a,b)]
-sorting [] = []
-sorting ((a,b):xs) = sorting sml ++ [(a,b)] ++ sorting lar
-   where sml = [(p,n) | (p,n) <- xs, p<a]
-         lar = [(q,m) | (q,m) <- xs, q>=a]
-
 chooseData :: String -> [String] -> [String]
 chooseData _ [] = []
 chooseData h (x:xs) =
   let lh = length h
    in if ((take lh x)==h) then (drop lh x):(chooseData h xs) else chooseData h xs
-
-
-addDay :: Orders -> String -> String -> String
-addDay lo g t =
-  case t of
-    "W" -> let r = show$getIndex g weeklist 
-               ism = elem (head r) lo
-            in if ism then "" else r
-    _   -> g++";"
-
-isNum :: String -> Bool
-isNum [] = True
-isNum (x:xs) = (isDigit x) && (isNum xs)
 
 isTodo :: String -> Bool
 isTodo s = 
@@ -424,10 +273,6 @@ cvTdList (L a) (L b) = map (cvTd . (flip (:) [])) (toList a b)
 cvTdList (LN c a) (LN _ b) = map (cvTd . ((:) c) . show) (toList a b) 
 cvTdList _ _ = []
   
-toList :: (Enum a,Ord a) => a -> a -> [a]
-toList a b = if(a==b) then [a] else
-             if (a<b) then [a..b] else [b..a]
-
 isto :: String -> Bool
 isto s =
   if(elem '-' s) then 
@@ -450,109 +295,4 @@ cvTd s@(h:t)
   | (not$isDigit h) && (isNum t) = LN h (read t)
   | isStr s                      = S s
   | otherwise                    = Ot 
-
-isChar :: String -> String -> Bool
-isChar [] _ = True 
-isChar (x:xs) str = (elem x str) && (isChar xs str)
-
-isStr :: String -> Bool
-isStr [] = True
-isStr (x:xs) = (not$isDigit x) && (isStr xs)
-
-
-isDay :: String -> String -> Bool
-isDay t s =
-  let s' = if (head s=='0') then tail s else s 
-      len = length s'
-   in case t of
-        "Y" -> let (mo,dy) = if (len==3) then ([head s'],tail s') else (take 2 s',drop 2 s')
-                   (moi,dyi) = (read mo::Int, read dy::Int)
-                in len>2 && len<5 && moi>0 && moi<13 && dyi>0 && dyi<1+(daylist!!(moi-1))
-        "M" -> let dyi = read s'::Int
-                in dyi>0 && dyi<32
-        "W" -> elem s' weeklist 
-        "D" -> let (mo,dy) = if (len==7) then ([s'!!4],drop 5 s') 
-                                         else (take 2 (drop 4 s'),drop 6 s')
-                   (moi,dyi) = (read mo::Int, read dy::Int)
-                in len>6 && len <9 && moi>0 && moi<13 && dyi>0 && dyi<1+(daylist!!(moi-1))
-        "H" -> let (h,m) = if (len==3) then ([head s'],tail s') else (take 2 s',drop 2 s')
-                   (hi,mi) = (read h::Int, read m::Int)
-                in len>2 && len<5 && hi>=0 && hi<24 && mi>=0 && mi<60
-
-
-fileOut :: IO Contents
-fileOut = do
-  h <- openFile tgPass ReadMode
-  hSetEncoding h utf8
-  con <- hGetContents h 
-  putStr (con++"\n")
-  hClose h
-  return con
-
-fileIn :: Contents -> IO ()
-fileIn str = do
-  h <- openFile tgPass WriteMode
-  hSetEncoding h utf8
-  hPutStr h str 
-  hClose h
-
-today :: IO String 
-today = do
-  (a:b:c:d:_:e:f:_:g) <- show <$> localDay <$> zonedTimeToLocalTime <$> getZonedTime
-  return (a:b:c:d:e:f:g)
-
-uru :: Int -> Bool
-uru y = let r1 = mod y 4 == 0
-            r2 = mod y 100 == 0
-            r3 = mod y 400 == 0
-         in r3 || (r1 && not r2)
-
-getIndex :: Eq a => a -> [a] -> Int
-getIndex _ [] = 0
-getIndex t (x:xs) = if(t==x) then 0 else 1+(getIndex t xs)
-
-sepChar :: Char -> String -> [String]
-sepChar _ [] = []
-sepChar ch [x]    = if (x==ch) then [[]] else [[x]]
-sepChar ch (x:xs) = if (x==ch) then [[]]++(hd:tl)
-                               else [x:hd]++tl
-                          where (hd:tl) = sepChar ch xs
-
-joinChar :: Char -> [String] -> String
-joinChar _ [] = []
-joinChar _ [x] = x
-joinChar ch (x:xs) = x++[ch]++(joinChar ch xs)
-
-toHour :: String -> (Int, Int)
-toHour s =
-  let len = length s
-      (ho,mi) = if (len==3) then ([head s],tail s) else (take 2 s,drop 2 s)
-   in (read ho, read mi)
-
-howLong :: String -> String -> Int
-howLong s f =
-  let (sho,smi) = toHour s
-      (fho,fmi) = toHour f
-      sami = sho * 60 + smi
-      fami = fho * 60 + fmi
-   in fami - sami
-
-sepday :: String -> (Int,Int,Int)
-sepday (a:b:c:d:e:f:g) = (read (a:b:c:d:[]), read (e:f:[]), read g)
-
-hmDays :: String -> String -> Int
-hmDays fday sday =
-  let (fy,fm,fd) = sepday fday
-      (sy,sm,sd) = sepday sday
-      fal = if (fm>1) then (sum$take (fm-1) daylist)+fd else fd
-      sal = if (sm>1) then (sum$take (sm-1) daylist)+sd else sd
-      fal' = if (uru fy && fm>2) then fal+1 else fal
-      sal' = if (uru sy && fm>2) then sal+1 else sal
-   in (dfYdays fy sy) + (sal'-fal')
-
-dfYdays :: Int -> Int -> Int
-dfYdays fy sy =
-  if (fy==sy) then 0
-              else (if (uru fy) then 366 else 365) + (dfYdays (fy+1) sy)
-
 ---------------------
