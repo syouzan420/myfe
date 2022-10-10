@@ -1,6 +1,5 @@
 module Mydata where
 
-
 type Contents = String
 type Orders = String
 data Dms = Dm String Int [Dms] | Rp | Er | Qi deriving (Eq,Show)
@@ -13,11 +12,8 @@ instance Show Td where
   show (S s) = s
   show Ot = "Ot"
 
---daylist :: [Int]
---daylist = [31,28,31,30,31,30,31,31,30,31,30,31]
-
---weeklist :: [String]
---weeklist = ["su","m","tu","w","th","f","sa"]
+tgPass :: FilePath
+tgPass = "myfe.txt"
 
 weekTList :: [String]
 weekTList = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]

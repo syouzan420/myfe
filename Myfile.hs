@@ -2,9 +2,7 @@ module Myfile where
 
 import System.IO(IOMode(..), openFile, hClose, hGetContents, hSetEncoding, utf8, hPutStr)
 import System.Directory(doesFileExist)
-
-tgPass :: FilePath
-tgPass = "myfe.txt"
+import Mydata(tgPass)
 
 isFile :: IO Bool
 isFile = doesFileExist tgPass

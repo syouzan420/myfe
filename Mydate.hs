@@ -1,7 +1,7 @@
 module Mydate (today,howLong,hmDays,isDay,addDay) where
 
 import Data.Time.LocalTime(getZonedTime,ZonedTime(zonedTimeToLocalTime),LocalTime(localDay))
-import Useful
+import Useful(getIndex)
 
 daylist :: [Int]
 daylist = [31,28,31,30,31,30,31,31,30,31,30,31]
@@ -14,18 +14,6 @@ today = do
   (a:b:c:d:_:e:f:_:g) <- show <$> localDay <$> zonedTimeToLocalTime <$> getZonedTime
   return (a:b:c:d:e:f:g)
 
-uru :: Int -> Bool
-uru y = let r1 = mod y 4 == 0
-            r2 = mod y 100 == 0
-            r3 = mod y 400 == 0
-         in r3 || (r1 && not r2)
-
-toHour :: String -> (Int, Int)
-toHour s =
-  let len = length s
-      (ho,mi) = if (len==3) then ([head s],tail s) else (take 2 s,drop 2 s)
-   in (read ho, read mi)
-
 howLong :: String -> String -> Int
 howLong s f =
   let (sho,smi) = toHour s
@@ -33,9 +21,6 @@ howLong s f =
       sami = sho * 60 + smi
       fami = fho * 60 + fmi
    in fami - sami
-
-sepday :: String -> (Int,Int,Int)
-sepday (a:b:c:d:e:f:g) = (read (a:b:c:d:[]), read (e:f:[]), read g)
 
 hmDays :: String -> String -> Int
 hmDays fday sday =
@@ -46,11 +31,6 @@ hmDays fday sday =
       fal' = if (uru fy && fm>2) then fal+1 else fal
       sal' = if (uru sy && fm>2) then sal+1 else sal
    in (dfYdays fy sy) + (sal'-fal')
-
-dfYdays :: Int -> Int -> Int
-dfYdays fy sy =
-  if (fy==sy) then 0
-              else (if (uru fy) then 366 else 365) + (dfYdays (fy+1) sy)
 
 isDay :: String -> String -> Bool
 isDay t s =
@@ -79,4 +59,23 @@ addDay lo g t =
             in if ism then "" else r
     _   -> g++";"
 
+uru :: Int -> Bool
+uru y = let r1 = mod y 4 == 0
+            r2 = mod y 100 == 0
+            r3 = mod y 400 == 0
+         in r3 || (r1 && not r2)
+
+toHour :: String -> (Int, Int)
+toHour s =
+  let len = length s
+      (ho,mi) = if (len==3) then ([head s],tail s) else (take 2 s,drop 2 s)
+   in (read ho, read mi)
+
+sepday :: String -> (Int,Int,Int)
+sepday (a:b:c:d:e:f:g) = (read (a:b:c:d:[]), read (e:f:[]), read g)
+
+dfYdays :: Int -> Int -> Int
+dfYdays fy sy =
+  if (fy==sy) then 0
+              else (if (uru fy) then 366 else 365) + (dfYdays (fy+1) sy)
 
