@@ -13,6 +13,45 @@ main = do
        else fileIn "" >> return ""
   sLoop c
 
+adjustOrd :: Orders -> (Char,Orders)
+adjustOrd [] = (' ',"")
+adjustOrd (a:[]) = (a,"")
+adjustOrd (a:b:ord) =
+  case a of
+    'a' -> if(b=='t') then
+              (a,(b:ord)++(joinChar ',' (map show (conTodo$last$sepChar ';' ord)))++";")
+                      else (a,b:ord)
+    's' -> ('a',a:b:ord)
+    _   -> (a,b:ord)
+
+changeData :: Orders -> Orders -> Orders
+changeData pd (t:ord) =
+  case t of
+    't' -> let pdl = sepChar ';' pd
+               odl = sepChar ';' ord
+               ptd = sepChar ',' (last pdl)
+               otd = map show (conTodo$tail$last odl)
+               fl = head$last odl
+               nptd = if(fl=='c') then joinChar ',' (dataSub ptd otd)
+                                  else joinChar ',' (dataAdd ptd otd)
+            in joinChar ';' ((init pdl)++[nptd])
+    _   -> pd
+
+dataSub :: Eq a => [a] -> [a] -> [a]
+dataSub org [] = org 
+dataSub org (t:ts) =
+  let ie = elem t org
+      id = if ie then getIndex t org else (-1)
+   in if (id>(-1)) then dataSub (delCon id org) ts
+                   else dataSub org ts
+
+dataAdd :: Eq a => [a] -> [a] -> [a]
+dataAdd org [] = org 
+dataAdd org (t:ts) =
+  let ie = elem t org
+   in if ie then dataAdd org ts
+            else dataAdd (org++[t]) ts
+
 sLoop :: Contents -> IO ()
 sLoop c = do
   tdy <- today
@@ -20,37 +59,49 @@ sLoop c = do
   mapM_ putStrLn (showTodo c tdy)
   o <- comLoop "" "" 0 "" demands
   putStrLn o
-  let (f:ord) = o
-      cs = lines c
+  let cs = lines c
+      (f,ord) = adjustOrd o
+      im = head ord=='m'
+      it = head ord=='t'
+      dpth = if it then 2 else 1
+      ids = idSame dpth ord cs
   nc <- case f of
-    f' | f'=='a' || f'=='s' -> do
+    'a' -> do
       b <- confirm "add"
-      let ord' = if (f'=='s') then 's':ord else
-                 if ((head ord)=='t') then 
-                   ord++(joinChar ',' (map show (conTodo$last$sepChar ';' ord)))++";" else  ord
-          dpt = if((head ord)=='t') then 2 else 1
-          s = idSame dpt ord' cs
-          im = head ord == 'm'
-      cs' <- if (b && s>(-1) && not im) then do
+      cs' <- if (b && ids>(-1) && not im) then do
                putStrLn "There is a data of the same name. "
-               putStrLn (show (cs!!s))
+               putStrLn (show (cs!!ids))
                r <- confirm "replace"
-               if r then return$replCon s ord' cs else return cs
+               if r then return$replCon ids ord cs else return cs
                     else return cs
       if b then do
-              let nc = unlines (cs' ++ (if (s>(-1) && not im) then [] else [ord']))
+              let nc = unlines (cs' ++ (if (ids>(-1) && not im) then [] else [ord]))
               fileIn nc
               putStrLn "wrote to myfe.txt. success!"
               return nc
            else putStrLn "add data -- canceled." >> return c
+    'c' -> do
+      cs' <- if (ids>(-1)) then do
+              let pd = cs!!ids
+              putStrLn "The data is"
+              putStrLn (show pd)
+              let nord = changeData pd ord 
+              return$replCon ids nord cs
+                           else do
+              putStrLn "There is no changeable data" >> return cs
+      b <- confirm "change"
+      if b then do
+              let nc = unlines cs'
+              fileIn nc
+              putStrLn "wrote to myfe.txt. success!"
+              return nc
+           else putStrLn "change data -- canceled." >> return c
     'd' -> do
-      let dpt = if((head ord)=='t') then 2 else 1
-          s = idSame dpt ord cs
-      cs' <- if (s>(-1)) then do
+      cs' <- if (ids>(-1)) then do
               putStrLn "The target data is"
-              putStrLn (show (cs!!s))
+              putStrLn (show (cs!!ids))
               b <- confirm "delete"
-              if b then return$delCon s cs else return cs
+              if b then return$delCon ids cs else return cs
                    else putStrLn "There is no target data-- delete canceled." >> return cs
       if(cs==cs') then return c
                   else do
