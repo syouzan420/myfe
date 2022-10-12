@@ -81,6 +81,6 @@ showTodoEach (td:tds) day =
                           if (rday==1) then "tomorrow" else
                           if (rday==0) then "today" else 
                           if (rday==(-1)) then "yesterday" else (show (-rday))++" days behind")
-                       ++"\n"
+                       ++" (deadline: "++dl++")"++"\n"
    in res:(showTodoEach tds day) 
 

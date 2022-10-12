@@ -1,5 +1,6 @@
 import System.IO(hSetBuffering, stdout, BufferMode(NoBuffering))
-import Useful(getIndex,sepChar,joinChar,sorting,isNum,isChar,chooseData,replCon,delCon)
+import Useful(getIndex,sepChar,joinChar,sorting,isNum,isChar,chooseData,replCon,delCon,
+              dataSub,dataAdd)
 import Mydate(today,howLong,hmDays,isDay,addDay)
 import Mydata(Orders,Contents,Dms(..),demands,messages,errors,weekTList,nameMoney)
 import Myfile(fileIn,fileOut,isFile)
@@ -13,6 +14,18 @@ main = do
        else fileIn "" >> return ""
   sLoop c
 
+sLoop :: Contents -> IO ()
+sLoop c = do
+  tdy <- today
+  mapM_ putStrLn (showData c)
+  mapM_ putStrLn (showTodo c tdy)
+  o <- comLoop "" "" 0 "" demands
+  putStrLn o
+  let (f,ord) = adjustOrd o
+  if (f=='q') then return () else do
+    nc <- makeNewCon f ord c
+    putStr ("\n"++nc++"\n") >> sLoop nc
+
 adjustOrd :: Orders -> (Char,Orders)
 adjustOrd [] = (' ',"")
 adjustOrd (a:[]) = (a,"")
@@ -23,6 +36,46 @@ adjustOrd (a:b:ord) =
                       else (a,b:ord)
     's' -> ('a',a:b:ord)
     _   -> (a,b:ord)
+
+makeNewCon :: Char -> Orders -> Contents -> IO Contents
+makeNewCon f ord c = do
+  let cs = lines c
+      im = head ord=='m'
+      it = head ord=='t'
+      dpth = if it then 2 else 1
+      ids = idSame dpth ord cs
+      fname = case f of
+        'a' -> if (ids>(-1) && not im) then "replace" else "add"
+        'c' -> "change" 
+        'd' -> "delete"
+        _   -> ""
+  ncs <- if (ids>(-1)) then do
+      case f of
+        'a' -> putStrLn "There is a data of the same name. "
+        'c' -> putStrLn "The data is"
+        'd' -> putStrLn "The target data is"
+      let pd = cs!!ids
+      putStrLn (show pd)
+      let ncs' = case fname of
+                  "add"     -> cs ++ [ord]
+                  "replace" -> replCon ids ord cs
+                  "change"  -> let nord = changeData pd ord in replCon ids nord cs
+                  "delete"  -> delCon ids cs
+      return ncs'
+                else do
+      case f of
+        'a' -> return (cs ++ [ord])
+        'c' -> putStrLn "There is no changeable data" >> return cs
+        'd' -> putStrLn "There is no target data" >> return cs
+  if (cs/=ncs) then do
+      b <- confirm fname 
+      if b then do
+              let nc = unlines ncs 
+              fileIn nc
+              putStrLn "wrote to myfe.txt. success!"
+              return nc
+           else putStrLn (fname++" data -- canceled.")  >> return c
+               else putStrLn (" -- canceled")  >> return c
 
 changeData :: Orders -> Orders -> Orders
 changeData pd (t:ord) =
@@ -36,80 +89,6 @@ changeData pd (t:ord) =
                                   else joinChar ',' (dataAdd ptd otd)
             in joinChar ';' ((init pdl)++[nptd])
     _   -> pd
-
-dataSub :: Eq a => [a] -> [a] -> [a]
-dataSub org [] = org 
-dataSub org (t:ts) =
-  let ie = elem t org
-      id = if ie then getIndex t org else (-1)
-   in if (id>(-1)) then dataSub (delCon id org) ts
-                   else dataSub org ts
-
-dataAdd :: Eq a => [a] -> [a] -> [a]
-dataAdd org [] = org 
-dataAdd org (t:ts) =
-  let ie = elem t org
-   in if ie then dataAdd org ts
-            else dataAdd (org++[t]) ts
-
-sLoop :: Contents -> IO ()
-sLoop c = do
-  tdy <- today
-  mapM_ putStrLn (showData c)
-  mapM_ putStrLn (showTodo c tdy)
-  o <- comLoop "" "" 0 "" demands
-  putStrLn o
-  let cs = lines c
-      (f,ord) = adjustOrd o
-      im = head ord=='m'
-      it = head ord=='t'
-      dpth = if it then 2 else 1
-      ids = idSame dpth ord cs
-  nc <- case f of
-    'a' -> do
-      b <- confirm "add"
-      cs' <- if (b && ids>(-1) && not im) then do
-               putStrLn "There is a data of the same name. "
-               putStrLn (show (cs!!ids))
-               r <- confirm "replace"
-               if r then return$replCon ids ord cs else return cs
-                    else return cs
-      if b then do
-              let nc = unlines (cs' ++ (if (ids>(-1) && not im) then [] else [ord]))
-              fileIn nc
-              putStrLn "wrote to myfe.txt. success!"
-              return nc
-           else putStrLn "add data -- canceled." >> return c
-    'c' -> do
-      cs' <- if (ids>(-1)) then do
-              let pd = cs!!ids
-              putStrLn "The data is"
-              putStrLn (show pd)
-              let nord = changeData pd ord 
-              return$replCon ids nord cs
-                           else do
-              putStrLn "There is no changeable data" >> return cs
-      b <- confirm "change"
-      if b then do
-              let nc = unlines cs'
-              fileIn nc
-              putStrLn "wrote to myfe.txt. success!"
-              return nc
-           else putStrLn "change data -- canceled." >> return c
-    'd' -> do
-      cs' <- if (ids>(-1)) then do
-              putStrLn "The target data is"
-              putStrLn (show (cs!!ids))
-              b <- confirm "delete"
-              if b then return$delCon ids cs else return cs
-                   else putStrLn "There is no target data-- delete canceled." >> return cs
-      if(cs==cs') then return c
-                  else do
-                    let nc = unlines cs'
-                    fileIn nc
-                    putStrLn "delete a data from myfe.txt. success!" >> return nc
-    _ -> return c
-  if (f=='q') then return () else putStr ("\n"++nc++"\n") >> sLoop nc
 
 idSame :: Int -> Orders -> [Orders] -> Int 
 idSame dpt ord cs = 

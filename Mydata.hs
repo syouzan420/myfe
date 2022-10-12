@@ -25,7 +25,8 @@ demands = Dm "" 0 [Dm "a" 1 [Dm "w" 2 [Dm "$" 3 awork1],
                    Dm "c" 1 [Dm "w" 0 [],
                              Dm "m" 0 [],
                              Dm "t" 2 [Dm "$" 23 ctodo1]],
-                   Dm "d" 1 [Dm "w" 2 lany, Dm "m" 2 lany, Dm "t" 2 lany],
+                   Dm "d" 1 [Dm "w" 2 lany, Dm "m" 2 lany,
+                             Dm "t" 2 [Dm "$" 23 dtodo1]],
                    Dm "s" 1 [Dm "w" 2 [Dm "$" 18 swork1],
                              Dm "m" 2 [Dm "$" 27 smoney1],
                              Dm "t" 0 []]]
@@ -61,6 +62,9 @@ ctodo1 = todof1 24 ctodo2
 
 ctodo2 :: [Dms]
 ctodo2 = [Dm "$" 29 [Dm "c" 26 [Dm "P" 0 []], Dm "n" 26 [Dm "P" 0 []]]]
+
+dtodo1 :: [Dms]
+dtodo1 = todof1 24 lany
 
 sworkf1 :: Int -> [Dms] -> [Dms]
 sworkf1 m dms = [Dm "t" 5 [Dm "JM" m dms], Dm "p" 21 [Dm "I" 5 [Dm "JM" m dms]],

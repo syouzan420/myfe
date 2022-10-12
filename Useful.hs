@@ -55,3 +55,18 @@ replCon id x y = take id y ++ [x] ++ drop (id+1) y
 delCon :: Int -> [a] -> [a]
 delCon id y = take id y ++ drop (id+1) y 
 
+dataSub :: Eq a => [a] -> [a] -> [a]
+dataSub org [] = org 
+dataSub org (t:ts) =
+  let ie = elem t org
+      id = if ie then getIndex t org else (-1)
+   in if (id>(-1)) then dataSub (delCon id org) ts
+                   else dataSub org ts
+
+dataAdd :: Eq a => [a] -> [a] -> [a]
+dataAdd org [] = org 
+dataAdd org (t:ts) =
+  let ie = elem t org
+   in if ie then dataAdd org ts
+            else dataAdd (org++[t]) ts
+
