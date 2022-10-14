@@ -49,7 +49,7 @@ makeNewCon f ord c = do
         'c' -> "change" 
         'd' -> "delete"
         _   -> ""
-  ncs <- if (ids>(-1)) then do
+  ncs <- if (ids>(-1) && not im) then do
       case f of
         'a' -> putStrLn "There is a data of the same name. "
         'c' -> putStrLn "The data is"

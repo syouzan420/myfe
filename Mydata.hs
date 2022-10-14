@@ -25,11 +25,15 @@ demands = Dm "" 0 [Dm "a" 1 [Dm "w" 2 [Dm "$" 3 awork1],
                    Dm "c" 1 [Dm "w" 0 [],
                              Dm "m" 0 [],
                              Dm "t" 2 [Dm "$" 23 ctodo1]],
-                   Dm "d" 1 [Dm "w" 2 lany, Dm "m" 2 lany,
-                             Dm "t" 2 [Dm "$" 23 dtodo1]],
+--                   Dm "d" 1 [Dm "w" 2 lany, Dm "m" 2 lany,
+--                             Dm "t" 2 [Dm "$" 23 dtodo1]],
+                   Dm "d" 30 ([Dm "s" 1 dall]++dall),
                    Dm "s" 1 [Dm "w" 2 [Dm "$" 18 swork1],
                              Dm "m" 2 [Dm "$" 27 smoney1],
                              Dm "t" 0 []]]
+
+dall :: [Dms]
+dall = [Dm "w" 2 lany, Dm "m" 2 lany, Dm "t" 2 [Dm "$" 23 dtodo1]]
 
 awork1 :: [Dms]
 awork1 = [Dm "y" 4 [Dm "RY" 8 awork2],
@@ -115,7 +119,8 @@ messages = ["0;enter the operation -- a: add, c: change, d: delete, s: show",   
             "10;enter the todo format -- ie. 3-10,12-14,16,a,b,A,D,...",
             "0;choose to show -- a:all, c:change, l:list",
             "6;how many data to show?",
-            "1;c: complete and delete, n: new task add"
+            "1;c: complete and delete, n: new task add",
+            "0;s: show, w: work, m: money, t: todo"                                    --30
            ]
 
 errors :: [String]
