@@ -217,12 +217,11 @@ showMC :: [(String,Int)] -> (String,Int) -> [String]
 showMC [] _ = []
 showMC ((day,amo):xs) ("",0) = showMC xs (day,amo)
 showMC ((day,amo):xs) (pday,pamo) =
-  let dl = hmDays day pday
+  let dl = hmDays pday day
       sa = amo-pamo
-      ip = sa>=0
       rate = floor$(fromIntegral sa)/(fromIntegral dl)
    in [pday++" to "++day++": change: "++(show sa)
-           ++" ("++(if ip then "" else "-")++(show rate)++"/day)"]
+           ++" ("++(show rate)++"/day)"]
       ++ showMC xs (day,amo)
 
 sumUp :: [(String,String)] -> String -> Int -> [(String,Int)]
