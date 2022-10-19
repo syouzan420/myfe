@@ -12,12 +12,13 @@ main = do
   e <- isFile 
   c <- if e then fileOut
        else fileIn "" >> return ""
+  getLine
   sLoop c
 
 sLoop :: Contents -> IO ()
 sLoop c = do
   tdy <- today
-  mapM_ putStrLn (showData c)
+  mapM_ putStrLn (showData c) >> getLine
   mapM_ putStrLn (showTodo c tdy)
   o <- comLoop "" "" 0 "" demands
   putStrLn o

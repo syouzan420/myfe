@@ -62,25 +62,28 @@ showTodoEach :: [String] -> String -> [String]
 showTodoEach [] _ = []
 showTodoEach (td:tds) day =
   let scs = sepChar ';' td
+      icomp = length scs==4 
       nm = head scs
       (t:ds) = scs!!1
       dl = scs!!2
       cona = scs!!3
       cona' = map show (conTodo cona)
-      cony = scs!!4
-      cony' = sepChar ',' cony
+      cony = if icomp then "" else scs!!4
+      cony' = if icomp then [] else sepChar ',' cony
       lena = fromIntegral$length cona'
       leny = fromIntegral$length cony'
       par = floor$(lena-leny)/lena*100
       par2 = div par 10
       bar = concat$["|"] ++ replicate par2 "=>" ++ replicate (10-par2) "--" ++ ["|"]
       rday = hmDays day dl
+      pace = if (rday>0 && leny>0) then (show$floor$leny)++" work(s)--steady pace of "
+                       ++(show$ceiling$leny/(fromIntegral rday))++" work(s)/day" else ""
       res = "Todo: "++(nameTodo nm)++"-"++ds++"\n"++(todoType t)++": "++cony++"\n"
                        ++bar++" "++(show par)++"% done -- "
                        ++(if (rday>1) then (show rday)++" days ahead" else
                           if (rday==1) then "tomorrow" else
                           if (rday==0) then "today" else 
                           if (rday==(-1)) then "yesterday" else (show (-rday))++" days behind")
-                       ++" (deadline: "++dl++")"++"\n"
+                       ++" (deadline: "++dl++")"++"\n"++pace++"\n"
    in res:(showTodoEach tds day) 
 
