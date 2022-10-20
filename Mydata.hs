@@ -135,7 +135,8 @@ nameTodo s =
   case s of "ma" -> "Math"; "en" -> "English"; "ni" -> "Kokugo"; "ph" -> "Physics";
             "bi" -> "Biology"; "ch" -> "Chemistry"; "hi" -> "History"; "ge" -> "Geology";
             "te" -> "Technique"; "li" -> "Life"; "pe" -> "Physical Excersize";
-            "mu" -> "Music"; "ar" -> "Art"; "so" -> "Society"; "ec" -> "Economy"; _ -> s
+            "mu" -> "Music"; "ar" -> "Art"; "so" -> "Society"; "ec" -> "Economy";
+            "it" -> "Information Technology"; _ -> s
 
 nameMoney :: String -> String
 nameMoney s =

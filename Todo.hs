@@ -78,7 +78,7 @@ showTodoEach (td:tds) day =
       rday = hmDays day dl
       pace = if (rday>0 && leny>0) then (show$floor$leny)++" work(s)--steady pace of "
                        ++(show$ceiling$leny/(fromIntegral rday))++" work(s)/day" else ""
-      res = "Todo: "++(nameTodo nm)++"-"++ds++"\n"++(todoType t)++": "++cony++"\n"
+      res = "Todo: "++(nameTodo nm)++"("++nm++")-"++ds++"\n"++(todoType t)++": "++cony++"\n"
                        ++bar++" "++(show par)++"% done -- "
                        ++(if (rday>1) then (show rday)++" days ahead" else
                           if (rday==1) then "tomorrow" else

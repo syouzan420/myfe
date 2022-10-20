@@ -209,8 +209,9 @@ showFunc cs ((t:ts):xs) =
                rsl = sumUp sdl "" 0
                ic = elem 'c' (ords!!1)
                lrs = length rsl
-            in if (ic && lrs>1) then (("Money: "++(nameMoney nm)):(showMC rsl ("",0)))
-                                      ++(showFunc cs xs) 
+            in if (ic && lrs>1) then 
+                        (("Money: "++(nameMoney nm)++"("++nm++")"):(showMC rsl ("",0)))
+                        ++(showFunc cs xs) 
                                 else showFunc cs xs 
     _   -> showFunc cs xs 
                
