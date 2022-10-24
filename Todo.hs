@@ -2,7 +2,7 @@ module Todo (isTodo,conTodo,showTodo) where
 
 import Mydata(Td(..),Contents,nameTodo,todoType)
 import Useful(sepChar,isNum,isStr,toList,chooseData)
-import Mydate(hmDays)
+import Mytime(hmDays)
 import Data.Char(isDigit)
 
 isTodo :: String -> Bool

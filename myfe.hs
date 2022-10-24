@@ -1,7 +1,7 @@
 import System.IO(hSetBuffering, stdout, BufferMode(NoBuffering))
 import Useful(getIndex,sepChar,joinChar,sorting,isNum,isChar,chooseData,replCon,delCon,
               dataSub,dataAdd)
-import Mydate(today,howLong,hmDays,isDay,addDay)
+import Mytime(today,howLong,hmDays,isDay,addDay)
 import Mydata(Orders,Contents,Dms(..),demands,messages,errors,weekTList,nameMoney)
 import Myfile(fileIn,fileOut,isFile)
 import Todo(isTodo,conTodo,showTodo)
